@@ -1,0 +1,63 @@
+{
+  "version": 1,
+  "author": "Volodymyr Seleznov",
+  "editor": "wokwi",
+  "parts": [
+    {
+      "type": "wokwi-pushbutton",
+      "id": "btn1",
+      "top": 191.9,
+      "left": -25.3,
+      "rotate": 90,
+      "attrs": { "color": "green" }
+    },
+    { "type": "board-esp32-devkit-c-v4", "id": "esp", "top": -153.9, "left": 25.02, "attrs": {} },
+    {
+      "type": "board-ssd1306",
+      "id": "oled1",
+      "top": 70.34,
+      "left": 29.03,
+      "attrs": { "i2cAddress": "0x3c" }
+    },
+    {
+      "type": "wokwi-pushbutton",
+      "id": "btn2",
+      "top": 191.9,
+      "left": 32.3,
+      "rotate": 90,
+      "attrs": { "color": "green" }
+    },
+    {
+      "type": "wokwi-pushbutton",
+      "id": "btn3",
+      "top": 191.9,
+      "left": 89.9,
+      "rotate": 90,
+      "attrs": { "color": "green" }
+    },
+    { "type": "wokwi-microsd-card", "id": "sd1", "top": -162.97, "left": -134.33, "attrs": {} }
+  ],
+  "connections": [
+    [ "esp:TX", "$serialMonitor:RX", "", [] ],
+    [ "esp:RX", "$serialMonitor:TX", "", [] ],
+    [ "oled1:SDA", "esp:5", "blue", [ "h-0.07", "v-10.8", "h115.34", "v-152.4" ] ],
+    [ "esp:4", "oled1:SCL", "orange", [ "h14.66", "v55.23", "h-191.7" ] ],
+    [ "esp:GND.5", "oled1:GND", "black", [ "v19.2", "h35.2" ] ],
+    [ "esp:5V.2", "oled1:VCC", "red", [ "h0" ] ],
+    [ "btn1:2.l", "esp:GND.6", "green", [ "h-0.2", "v-134.4", "h153.6", "v-38.4" ] ],
+    [ "btn2:2.l", "btn1:2.l", "green", [ "v-9.6", "h-57.6" ] ],
+    [ "btn2:2.l", "btn3:2.l", "green", [ "v-9.6", "h57.4" ] ],
+    [ "esp:6", "btn2:1.l", "green", [ "h74.38", "v220.8", "h-115.2" ] ],
+    [ "sd1:GND", "esp:GND.1", "black", [ "h57.6", "v0.11" ] ],
+    [ "sd1:VCC", "esp:3V3.1", "red", [ "h48", "v-9.46" ] ],
+    [ "sd1:DO", "esp:2", "green", [ "h67.2", "v38.51" ] ],
+    [ "esp:3", "sd1:SCK", "green", [ "h-48", "v-28.79" ] ],
+    [ "esp:1", "sd1:CS", "green", [ "h-57.6", "v-48" ] ],
+    [ "esp:CMD", "btn1:2.l", "green", [ "h0" ] ],
+    [ "btn2:1.l", "esp:16", "green", [ "v-19.2", "h86.4", "v-182.7" ] ],
+    [ "esp:0", "btn1:1.l", "green", [ "h27.82", "v153.9", "h-134.4" ] ],
+    [ "btn3:1.l", "esp:17", "green", [ "v-9.6", "h38.4", "v-201.6" ] ],
+    [ "esp:0", "esp:D0", "green", [ "h18.22", "v38.7" ] ]
+  ],
+  "dependencies": {}
+}
