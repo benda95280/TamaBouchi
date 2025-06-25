@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>ESP32 OLED Viewer</title>
+    <style>
+        body { font-family: sans-serif; background-color: #2c2c2c; color: #eee; text-align: center; margin: 20px; padding: 0; }
+        h1 { margin-bottom: 20px; }
+        #oled-canvas { background-color: #000; border: 2px solid #555; image-rendering: pixelated; image-rendering: -moz-crisp-edges; image-rendering: crisp-edges; }
+        #status-bar { margin-top: 15px; font-style: italic; color: #aaa; }
+        .controls { margin-top: 10px; }
+        .controls button { font-size: 20px; width: 40px; height: 40px; margin: 0 5px; }
+        .game-controls { margin-top: 15px; }
+        .game-controls button {
+            font-size: 16px;
+            padding: 8px 16px;
+            margin: 0 5px;
+            border: 1px solid #555;
+            background-color: #4a4a4a;
+            color: #eee;
+            cursor: pointer;
+            border-radius: 4px;
+        }
+        .game-controls button:hover {
+            background-color: #5c5c5c;
+        }
+        .game-controls button:active {
+            background-color: #6a6a6a;
+            transform: translateY(1px);
+        }
+    </style>
+</head>
+<body>
+    <h1>ESP32 OLED Viewer</h1>
+    <canvas id="oled-canvas" width="128" height="64"></canvas>
+    <div class="controls">
+        <button id="zoom-out">-</button>
+        <button id="zoom-in">+</button>
+    </div>
+    <div class="game-controls">
+        <button class="game-btn" data-pin="1">Left</button>
+        <button class="game-btn" data-pin="0">OK</button>
+        <button class="game-btn" data-pin="2">Right</button>
+    </div>
+    <div id="status-bar">Status: <span id="status">Disconnected</span></div>
+
+    <script>
+        const canvas = document.getElementById('oled-canvas');
+        const ctx = canvas.getContext('2d');
+        const statusSpan = document.getElementById('status');
+        const zoomInButton = document.getElementById('zoom-in');
+        const zoomOutButton = document.getElementById('zoom-out');
+        let socket;
+        
+        const baseWidth = 128;
+        const baseHeight = 64;
+        const totalBytes = baseWidth * baseHeight / 8;
+        let scale = 4;
+
+        let latestFrameBuffer = new Uint8Array(totalBytes);
+        let newFrameAvailable = false;
+        
+        // --- Button State Tracking ---
+        const buttonStates = {};
+        const CLICK_MAX_DURATION_MS = 300;
+        const LONG_PRESS_MIN_DURATION_MS = 750;
+
+        // --- New Heartbeat/Connection Check Logic ---
+        let lastServerResponseTime = 0;
+        let connectionCheckInterval;
+        const IDLE_TIMEOUT_MS = 7000; // Time without any message before closing
+        const PING_IF_IDLE_MS = 4000; // Time without any message before sending a ping
+        
+        function updateCanvasSize() {
+            canvas.style.width = `${baseWidth * scale}px`;
+            canvas.style.height = `${baseHeight * scale}px`;
+        }
+
+        zoomInButton.onclick = function() {
+            if (scale < 10) { // Max zoom
+                scale++;
+                updateCanvasSize();
+            }
+        };
+
+        zoomOutButton.onclick = function() {
+            if (scale > 1) { // Min zoom
+                scale--;
+                updateCanvasSize();
+            }
+        };
+
+        function renderLoop() {
+            if (newFrameAvailable) {
+                drawBuffer(latestFrameBuffer);
+                newFrameAvailable = false;
+            }
+            requestAnimationFrame(renderLoop);
+        }
+        
+        function startConnectionChecks() {
+            lastServerResponseTime = Date.now();
+            clearInterval(connectionCheckInterval);
+            connectionCheckInterval = setInterval(() => {
+                const now = Date.now();
+                if (now - lastServerResponseTime > IDLE_TIMEOUT_MS) {
+                    console.warn(`[WebStream] No server response for over ${IDLE_TIMEOUT_MS}ms. Closing connection.`);
+                    socket.close(); // onclose will handle reconnect logic
+                } else if (now - lastServerResponseTime > PING_IF_IDLE_MS) {
+                    if (socket && socket.readyState === WebSocket.OPEN) {
+                        socket.send('ping');
+                    }
+                }
+            }, 2000); // Check connection status every 2 seconds
+        }
+
+        function connect() {
+            const gateway = `ws://${window.location.host}/screenviewer/ws`;
+            
+            statusSpan.textContent = "Connecting...";
+            socket = new WebSocket(gateway);
+            socket.binaryType = 'arraybuffer'; 
+
+            socket.onopen = function(event) {
+                statusSpan.textContent = "Connected";
+                console.log("WebSocket connection opened.");
+                startConnectionChecks();
+                renderLoop();
+            };
+
+            socket.onclose = function(event) {
+                statusSpan.textContent = "Disconnected. Reconnecting in 2s...";
+                console.log("WebSocket connection closed. Attempting to reconnect...");
+                clearInterval(connectionCheckInterval);
+                setTimeout(connect, 2000);
+            };
+
+            socket.onerror = function(error) {
+                statusSpan.textContent = "Connection Error";
+                console.error(`WebSocket Error:`, error);
+            };
+            
+            socket.onmessage = function(event) {
+                lastServerResponseTime = Date.now(); // Update time on ANY message from server
+                if (typeof event.data === 'string' && event.data === 'pong') {
+                    // Pong received, connection is alive.
+                    return;
+                }
+
+                const buffer = new Uint8Array(event.data);
+                if (buffer.length < 1) return;
+
+                const header = String.fromCharCode(buffer[0]);
+                const payload = buffer.subarray(1);
+
+                if (header === 'C' || header === 'U') { // Full frame
+                    latestFrameBuffer = (header === 'C') ? decompressRLE(payload) : payload;
+                    newFrameAvailable = true;
+                } else if (header === 'D') { // Delta frame
+                    applyDelta(payload);
+                    newFrameAvailable = true;
+                }
+                else {
+                    console.error("Unknown frame header received:", header);
+                }
+            };
+        }
+        
+        function applyDelta(payload) {
+            // Payload is a series of [index_high, index_low, value]
+            for (let i = 0; i < payload.byteLength; i += 3) {
+                const index = (payload[i] << 8) | payload[i + 1];
+                const value = payload[i + 2];
+                if (index < totalBytes) {
+                    latestFrameBuffer[index] = value;
+                }
+            }
+        }
+
+        function drawBuffer(decodedBuffer) {
+            const imageData = ctx.createImageData(baseWidth, baseHeight);
+            const data = imageData.data;
+
+            for (let i = 0; i < decodedBuffer.length; i++) {
+                const byte = decodedBuffer[i];
+                const page = Math.floor(i / baseWidth);
+                const x = i % baseWidth;
+                
+                for (let bit = 0; bit < 8; bit++) {
+                    const y = page * 8 + bit;
+                    if (y >= baseHeight) continue;
+
+                    if ((byte >> bit) & 1) {
+                        const pixelIndex = (y * baseWidth + x) * 4;
+                        data[pixelIndex] = 255;     // R
+                        data[pixelIndex + 1] = 255; // G
+                        data[pixelIndex + 2] = 255; // B
+                        data[pixelIndex + 3] = 255; // A
+                    }
+                }
+            }
+            ctx.putImageData(imageData, 0, 0);
+        }
+
+        function decompressRLE(payload) {
+            const decompressed = new Uint8Array(totalBytes);
+            let decompressedIndex = 0;
+
+            for (let i = 0; i < payload.byteLength; i += 2) {
+                if (decompressedIndex >= totalBytes) break;
+                const runCount = payload[i];
+                const byteValue = payload[i + 1];
+
+                for (let j = 0; j < runCount; j++) {
+                    if (decompressedIndex < totalBytes) {
+                        decompressed[decompressedIndex++] = byteValue;
+                    } else {
+                        break;
+                    }
+                }
+            }
+            return decompressed;
+        }
+
+        function sendButtonCommand(pin, eventTypeStr) {
+            if (socket && socket.readyState === WebSocket.OPEN) {
+                const command = `BTN_EVENT:PIN=${pin},TYPE=${eventTypeStr}`;
+                console.log("Sending command:", command);
+                socket.send(command);
+            } else {
+                console.warn("Could not send button command. WebSocket not open.");
+                statusSpan.textContent = "Error: Not Connected";
+            }
+        }
+
+        function handleButtonDown(event) {
+            event.preventDefault(); // Prevent scrolling on touch devices
+            const pin = this.dataset.pin;
+            if (!pin) return;
+
+            buttonStates[pin] = {
+                pressTime: Date.now(),
+                longPressTriggered: false,
+                timer: setTimeout(() => {
+                    sendButtonCommand(pin, 'LONG_PRESS');
+                    buttonStates[pin].longPressTriggered = true;
+                }, LONG_PRESS_MIN_DURATION_MS)
+            };
+            sendButtonCommand(pin, 'PRESS');
+        }
+
+        function handleButtonUp(event) {
+            event.preventDefault();
+            const pin = this.dataset.pin;
+            if (!pin || !buttonStates[pin]) return;
+
+            clearTimeout(buttonStates[pin].timer);
+            sendButtonCommand(pin, 'RELEASE');
+            
+            const pressDuration = Date.now() - buttonStates[pin].pressTime;
+            if (!buttonStates[pin].longPressTriggered && pressDuration <= CLICK_MAX_DURATION_MS) {
+                sendButtonCommand(pin, 'CLICK');
+            }
+            delete buttonStates[pin];
+        }
+        
+        window.onload = function() {
+            updateCanvasSize();
+            connect();
+
+            // Setup event listeners for all game control buttons
+            document.querySelectorAll('.game-btn').forEach(button => {
+                const pin = button.dataset.pin;
+                if(pin) {
+                    buttonStates[pin] = {}; // Initialize state object
+                    // Mouse events
+                    button.addEventListener('mousedown', handleButtonDown);
+                    button.addEventListener('mouseup', handleButtonUp);
+                    button.addEventListener('mouseleave', handleButtonUp); // Treat leaving as mouseup
+                    // Touch events
+                    button.addEventListener('touchstart', handleButtonDown);
+                    button.addEventListener('touchend', handleButtonUp);
+                }
+            });
+        };
+    </script>
+</body>
+</html>
