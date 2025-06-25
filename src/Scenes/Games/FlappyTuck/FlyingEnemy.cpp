@@ -1,7 +1,7 @@
 #include "FlyingEnemy.h"
 
 FlyingEnemy::FlyingEnemy(float x, float y, float speedX)
-    : EnemyObject(x, y, EnemyType::FLYING_BIRD, FlappyBirdGraphics::getEnemyBirdAsset()) {
+    : EnemyObject(x, y, EnemyType::FLYING_BIRD, FlappyTuckGraphics::getEnemyBirdAsset()) {
     _vx = speedX; // Flying enemy has a horizontal speed
     _vy = 0;      // No vertical speed unless implemented
 }

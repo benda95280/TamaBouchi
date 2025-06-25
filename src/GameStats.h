@@ -81,8 +81,8 @@ struct GameStats {
     WeatherType currentWeather = WeatherType::NONE;
     unsigned long nextWeatherChangeTime = 0;
     PrequelStage completedPrequelStage = PrequelStage::NONE; 
-    uint32_t flappyBirdCoins = 0;         // <<< NEW MEMBER
-    uint32_t flappyBirdHighScore = 0;     // <<< NEW MEMBER
+    uint32_t FlappyTuckCoins = 0;         // <<< NEW MEMBER
+    uint32_t FlappyTuckHighScore = 0;     // <<< NEW MEMBER
     // --- End Member Variables ---
 
 private:

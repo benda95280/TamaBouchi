@@ -134,7 +134,7 @@ void WiFiManager::init(const char* default_ssid, const char* default_password, A
 
     // Configure OTA server routes and callbacks
     _server->on("/", HTTP_GET, [](AsyncWebServerRequest *request) {
-        request->send(200, "text/plain", "Hi! This is OTA AsyncDemo for Flappy Bird.");
+        request->send(200, "text/plain", "Welcome.");
     });
 
     _ota->Begin(_server, "", ""); // Use the passed server pointer

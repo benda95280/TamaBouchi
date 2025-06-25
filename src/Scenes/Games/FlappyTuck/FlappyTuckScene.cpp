@@ -1,4 +1,4 @@
-#include "FlappyBirdScene.h"
+#include "FlappyTuckScene.h"
 #include "InputManager.h" 
 #include "Renderer.h"     
 #include "SceneManager.h" 
@@ -10,7 +10,7 @@
 #include <limits>    
 #include "GameStats.h" 
 #include "SerialForwarder.h" 
-#include "FlappyBirdGraphics.h" 
+#include "FlappyTuckGraphics.h" 
 #include "Coin.h"
 #include "PowerUpItem.h"
 #include "FlyingEnemy.h"
@@ -19,7 +19,7 @@
 #include "../../../System/GameContext.h" 
 
 // --- Re-add or ensure these constants are defined (either here or in .h) ---
-// Constants from the original FlappyBirdScene.cpp
+// Constants from the original FlappyTuckScene.cpp
 #define JUMP_FORCE -2.0f
 #define PIPE_SPEED_NORMAL_BASE 1 
 // #define PIPE_SPEED_FAST_BASE 2 // Not used directly, speed scales with level
@@ -28,25 +28,25 @@
 // --- End Constants ---
 
 
-FlappyBirdScene::FlappyBirdScene() : gameIsOver(false), _sessionCoins(0), _highScore(0) { 
-    debugPrint("SCENES", "FlappyBirdScene constructor.");
+FlappyTuckScene::FlappyTuckScene() : gameIsOver(false), _sessionCoins(0), _highScore(0) { 
+    debugPrint("SCENES", "FlappyTuckScene constructor.");
 }
 
-int FlappyBirdScene::getMinPipeSpacing() {
+int FlappyTuckScene::getMinPipeSpacing() {
     int baseMinSpacing = SCREEN_WIDTH / 2 - 5; 
     int reduction = (currentLevel / 2) * 4; 
     int minSafeSpacing = BIRD_RADIUS * 4 + getPipeWidth(); 
     int calculatedMin = baseMinSpacing - reduction;
     return std::max({minSafeSpacing, calculatedMin, 30}); 
 }
-int FlappyBirdScene::getMaxPipeSpacing() {
+int FlappyTuckScene::getMaxPipeSpacing() {
     int baseMaxSpacing = SCREEN_WIDTH / 2 + 25; 
     int reduction = (currentLevel / 2) * 6; 
     int minPossible = getMinPipeSpacing() + 5; 
     int calculatedMax = baseMaxSpacing - reduction;
     return std::max(minPossible, calculatedMax);
 }
-float FlappyBirdScene::getGravityForLevel() {
+float FlappyTuckScene::getGravityForLevel() {
     float base = INITIAL_GRAVITY + (currentLevel / 9.0f) * 0.020f; 
     float range = 0.015f + (currentLevel / 5.0f) * 0.005f; 
     float calculatedGravity = random(0, (int)(range * 1000)) / 1000.0f + base;
@@ -54,7 +54,7 @@ float FlappyBirdScene::getGravityForLevel() {
     return calculatedGravity;
 }
 
-void FlappyBirdScene::configurePipe(Pipe& pipe) {
+void FlappyTuckScene::configurePipe(Pipe& pipe) {
     int movingPipeChance = MOVING_PIPE_BASE_CHANCE_PERCENT + static_cast<int>((currentLevel - LEVEL_START_MOVING_PIPES) * MOVING_PIPE_CHANCE_SCALAR_PER_LEVEL);
     movingPipeChance = std::min(movingPipeChance, MOVING_PIPE_MAX_CHANCE_PERCENT);
     movingPipeChance = std::max(0, movingPipeChance); 
@@ -101,7 +101,7 @@ void FlappyBirdScene::configurePipe(Pipe& pipe) {
     }
 }
 
-void FlappyBirdScene::addPipeObject(int xPos) {
+void FlappyTuckScene::addPipeObject(int xPos) {
     int pipeWidth = getPipeWidth();
     int pipeGap = getPipeGap();
     int pipeGapY = random(TOP_BOTTOM_PADDING, SCREEN_HEIGHT - pipeGap - TOP_BOTTOM_PADDING);
@@ -112,7 +112,7 @@ void FlappyBirdScene::addPipeObject(int xPos) {
     gameObjects.push_back(std::move(newPipe));
 }
 
-void FlappyBirdScene::ensureObjectDensity() {
+void FlappyTuckScene::ensureObjectDensity() {
     int rightmostX = -SCREEN_WIDTH; 
     bool anyPipes = false;
     if (!gameObjects.empty()) {
@@ -136,10 +136,10 @@ void FlappyBirdScene::ensureObjectDensity() {
     }
 }
 
-void FlappyBirdScene::init(GameContext& context) { 
+void FlappyTuckScene::init(GameContext& context) { 
     GameScene::init(context); 
     if (_gameContext && _gameContext->gameStats) { 
-        _highScore = _gameContext->gameStats->flappyBirdHighScore;
+        _highScore = _gameContext->gameStats->FlappyTuckHighScore;
     }
     // The InputManager is now accessed via the context
     if (_gameContext && _gameContext->inputManager) {
@@ -149,21 +149,21 @@ void FlappyBirdScene::init(GameContext& context) {
                 return;
             }
             if (gameIsOver) {
-                debugPrint("SCENES", "FlappyBird: OK Click on GameOver, signaling exit.");
+                debugPrint("SCENES", "FlappyTuck: OK Click on GameOver, signaling exit.");
                 signalGameExit(false, pipePassed);
             } else {
                 this->flap();
             }
         });
     }
-    debugPrint("SCENES", "Flappy Bird Initialized (Derived from GameScene)");
+    debugPrint("SCENES", "Flappy Tuck Initialized (Derived from GameScene)");
 }
 
-void FlappyBirdScene::onEnter() {
+void FlappyTuckScene::onEnter() {
     GameScene::onEnter(); 
-    debugPrint("SCENES", "FlappyBirdScene::onEnter");
+    debugPrint("SCENES", "FlappyTuckScene::onEnter");
     if (_gameContext && _gameContext->gameStats) { 
-        _highScore = _gameContext->gameStats->flappyBirdHighScore; 
+        _highScore = _gameContext->gameStats->FlappyTuckHighScore; 
     }
     resetGame(); 
     _wasPausedByFatigue = false;
@@ -177,12 +177,12 @@ void FlappyBirdScene::onEnter() {
     _nextEnemySpawnInterval = random(MIN_ENEMY_SPAWN_INTERVAL_MS, MAX_ENEMY_SPAWN_INTERVAL_MS + 1);
 }
 
-void FlappyBirdScene::flap() { if (!gameIsOver && !isGamePausedByFatigue() && !isFatigueDialogActive()) birdVelocity = JUMP_FORCE; } 
+void FlappyTuckScene::flap() { if (!gameIsOver && !isGamePausedByFatigue() && !isFatigueDialogActive()) birdVelocity = JUMP_FORCE; } 
 
-void FlappyBirdScene::update(unsigned long deltaTime) {
+void FlappyTuckScene::update(unsigned long deltaTime) {
     GameScene::update(deltaTime); 
     if (!_gameContext || !_gameContext->gameStats || !_gameContext->renderer) { 
-        debugPrint("SCENES", "FlappyBirdScene FATAL: Critical context members null in update.");
+        debugPrint("SCENES", "FlappyTuckScene FATAL: Critical context members null in update.");
         return;
     }
 
@@ -191,7 +191,7 @@ void FlappyBirdScene::update(unsigned long deltaTime) {
     }
 
     if (_wasPausedByFatigue && !isGamePausedByFatigue() && !isFatigueDialogActive()) { 
-        debugPrint("SCENES", "FlappyBirdScene specific resume logic (if any).");
+        debugPrint("SCENES", "FlappyTuckScene specific resume logic (if any).");
     }
     _wasPausedByFatigue = isGamePausedByFatigue();
 
@@ -219,9 +219,9 @@ void FlappyBirdScene::update(unsigned long deltaTime) {
                         gameIsOver = true; 
                         debugPrint("SCENES", "Game Over: Collision with solid pipe part.");
                         if (_gameContext->gameStats) {  
-                            _gameContext->gameStats->flappyBirdCoins += _sessionCoins;
-                            if (pipePassed > _gameContext->gameStats->flappyBirdHighScore) {
-                                _gameContext->gameStats->flappyBirdHighScore = pipePassed;
+                            _gameContext->gameStats->FlappyTuckCoins += _sessionCoins;
+                            if (pipePassed > _gameContext->gameStats->FlappyTuckHighScore) {
+                                _gameContext->gameStats->FlappyTuckHighScore = pipePassed;
                                 _highScore = pipePassed; 
                             }
                             _gameContext->gameStats->save();
@@ -260,9 +260,9 @@ void FlappyBirdScene::update(unsigned long deltaTime) {
             gameIsOver = true; 
             debugPrint("SCENES", "Game Over: Out of bounds.");
             if (_gameContext->gameStats) { 
-                _gameContext->gameStats->flappyBirdCoins += _sessionCoins;
-                if (pipePassed > _gameContext->gameStats->flappyBirdHighScore) {
-                    _gameContext->gameStats->flappyBirdHighScore = pipePassed;
+                _gameContext->gameStats->FlappyTuckCoins += _sessionCoins;
+                if (pipePassed > _gameContext->gameStats->FlappyTuckHighScore) {
+                    _gameContext->gameStats->FlappyTuckHighScore = pipePassed;
                     _highScore = pipePassed; 
                 }
                 _gameContext->gameStats->save();
@@ -275,7 +275,7 @@ void FlappyBirdScene::update(unsigned long deltaTime) {
     } 
 }
 
-void FlappyBirdScene::draw(Renderer& renderer) { 
+void FlappyTuckScene::draw(Renderer& renderer) { 
     GameScene::draw(renderer); 
 
     if (isFatigueDialogActive() && !gameIsOver && getDialogBox() && getDialogBox()->isActive()) {
@@ -299,8 +299,8 @@ void FlappyBirdScene::draw(Renderer& renderer) {
     drawUI(renderer);
 }
 
-void FlappyBirdScene::resetGame() {
-    debugPrint("SCENES", "FlappyBirdScene: Resetting game state...");
+void FlappyTuckScene::resetGame() {
+    debugPrint("SCENES", "FlappyTuckScene: Resetting game state...");
     birdY = SCREEN_HEIGHT / 2.0f; birdX = 10.0f; birdVelocity = 0;
     gameIsOver = false; pipePassed = 0; currentLevel = 1; _sessionCoins = 0;
     gravity = INITIAL_GRAVITY; pipeSpeed = 1; 
@@ -321,10 +321,10 @@ void FlappyBirdScene::resetGame() {
     _lastEnemySpawnTime = currentTime + 2000; 
     _nextEnemySpawnInterval = random(MIN_ENEMY_SPAWN_INTERVAL_MS, MAX_ENEMY_SPAWN_INTERVAL_MS + 1);
 
-    debugPrint("SCENES", "FlappyBirdScene: Game Reset Complete.");
+    debugPrint("SCENES", "FlappyTuckScene: Game Reset Complete.");
 }
 
-void FlappyBirdScene::updateLevel() {
+void FlappyTuckScene::updateLevel() {
     int prevLevel = currentLevel;
     currentLevel = (pipePassed / 5) + 1; 
     if (currentLevel != prevLevel) {
@@ -338,28 +338,28 @@ void FlappyBirdScene::updateLevel() {
     }
 }
 
-int FlappyBirdScene::getPipeGap() {
+int FlappyTuckScene::getPipeGap() {
     int baseGap = 28 - currentLevel; 
     baseGap = std::max(12, baseGap); 
     return baseGap;
 }
-int FlappyBirdScene::getPipeWidth() {
+int FlappyTuckScene::getPipeWidth() {
     return 10 + (currentLevel / 2); 
 }
 
-void FlappyBirdScene::onGamePausedByFatigue() {
+void FlappyTuckScene::onGamePausedByFatigue() {
     GameScene::onGamePausedByFatigue(); 
     _wasPausedByFatigue = true;
-    debugPrint("SCENES", "FlappyBirdScene: Paused by fatigue.");
+    debugPrint("SCENES", "FlappyTuckScene: Paused by fatigue.");
 }
 
-void FlappyBirdScene::onGameResumedFromFatiguePause() {
+void FlappyTuckScene::onGameResumedFromFatiguePause() {
     GameScene::onGameResumedFromFatiguePause(); 
     _wasPausedByFatigue = false;
-    debugPrint("SCENES", "FlappyBirdScene: Resumed from fatigue pause.");
+    debugPrint("SCENES", "FlappyTuckScene: Resumed from fatigue pause.");
 }
 
-void FlappyBirdScene::spawnCoin() {
+void FlappyTuckScene::spawnCoin() {
     if (!_gameContext || !_gameContext->renderer) return;  
 
     float coinX = _gameContext->renderer->getWidth() + random(2, 6); 
@@ -378,7 +378,7 @@ void FlappyBirdScene::spawnCoin() {
 }
 
 
-void FlappyBirdScene::spawnPowerUp() {
+void FlappyTuckScene::spawnPowerUp() {
     if (!_gameContext || !_gameContext->renderer || currentLevel < LEVEL_START_POWERUPS) return; 
     float x = _gameContext->renderer->getWidth() + random(10, 30); 
     float y = random(TOP_BOTTOM_PADDING + POWERUP_SPRITE_HEIGHT, SCREEN_HEIGHT - TOP_BOTTOM_PADDING - POWERUP_SPRITE_HEIGHT * 2);
@@ -388,7 +388,7 @@ void FlappyBirdScene::spawnPowerUp() {
     debugPrintf("SCENES", "Spawned PowerUp Type %d at X: %.1f, Y: %.1f", (int)type, x, y);
 }
 
-void FlappyBirdScene::updateCollectibles(unsigned long deltaTime) {
+void FlappyTuckScene::updateCollectibles(unsigned long deltaTime) {
     int currentPipeSpeedAdj = _isSlowMotionActive ? std::max(1, pipeSpeed / 2) : pipeSpeed;
     for (auto& collectible : _collectibles) {
         collectible->update(currentPipeSpeedAdj, deltaTime);
@@ -399,7 +399,7 @@ void FlappyBirdScene::updateCollectibles(unsigned long deltaTime) {
         _collectibles.end());
 }
 
-void FlappyBirdScene::checkCollectibleCollisions() {
+void FlappyTuckScene::checkCollectibleCollisions() {
     auto it = _collectibles.begin();
     while (it != _collectibles.end()) {
         if ((*it)->collidesWith(birdX, birdY, BIRD_RADIUS)) {
@@ -416,7 +416,7 @@ void FlappyBirdScene::checkCollectibleCollisions() {
     }
 }
 
-void FlappyBirdScene::activatePowerUp(CollectibleType type) {
+void FlappyTuckScene::activatePowerUp(CollectibleType type) {
     deactivatePowerUp(); 
     _activePowerUpType = type;
     _powerUpEndTime = millis() + POWERUP_DURATION_MS;
@@ -425,13 +425,13 @@ void FlappyBirdScene::activatePowerUp(CollectibleType type) {
     else if (type == CollectibleType::POWERUP_SLOWMO) { _isSlowMotionActive = true; debugPrint("SCENES", "Slow Motion ACTIVE!"); }
 }
 
-void FlappyBirdScene::deactivatePowerUp() {
+void FlappyTuckScene::deactivatePowerUp() {
     if (_activePowerUpType != CollectibleType::COIN) { }
     _activePowerUpType = CollectibleType::COIN; 
     _isGhostModeActive = false; _isSlowMotionActive = false; _powerUpEndTime = 0;
 }
 
-void FlappyBirdScene::spawnFlyingEnemy() {
+void FlappyTuckScene::spawnFlyingEnemy() {
     if (!_gameContext || !_gameContext->renderer || currentLevel < LEVEL_START_FLYING_ENEMIES) return; 
     float x = _gameContext->renderer->getWidth() + random(5, 15); 
     float y = random(TOP_BOTTOM_PADDING + ENEMY_BIRD_SPRITE_HEIGHT, SCREEN_HEIGHT - TOP_BOTTOM_PADDING - ENEMY_BIRD_SPRITE_HEIGHT * 2);
@@ -442,7 +442,7 @@ void FlappyBirdScene::spawnFlyingEnemy() {
     debugPrintf("SCENES", "Spawned Flying Enemy at X: %.1f, Y: %.1f, VX: %.1f", x, y, speedX);
 }
 
-void FlappyBirdScene::updateEnemies(unsigned long deltaTime) {
+void FlappyTuckScene::updateEnemies(unsigned long deltaTime) {
     int currentScreenSpeedAdj = _isSlowMotionActive ? std::max(1, pipeSpeed / 2) : pipeSpeed;
     for (auto& enemy : _enemies) {
         enemy->update(currentScreenSpeedAdj, deltaTime); 
@@ -453,16 +453,16 @@ void FlappyBirdScene::updateEnemies(unsigned long deltaTime) {
         _enemies.end());
 }
 
-void FlappyBirdScene::checkEnemyCollisions() {
+void FlappyTuckScene::checkEnemyCollisions() {
     if (gameIsOver) return;
     for (const auto& enemy : _enemies) {
         if (enemy->collidesWith(birdX, birdY, BIRD_RADIUS)) {
             gameIsOver = true; 
             debugPrint("SCENES", "Game Over: Collision with enemy.");
              if (_gameContext && _gameContext->gameStats) { 
-                _gameContext->gameStats->flappyBirdCoins += _sessionCoins;
-                if (pipePassed > _gameContext->gameStats->flappyBirdHighScore) {
-                    _gameContext->gameStats->flappyBirdHighScore = pipePassed;
+                _gameContext->gameStats->FlappyTuckCoins += _sessionCoins;
+                if (pipePassed > _gameContext->gameStats->FlappyTuckHighScore) {
+                    _gameContext->gameStats->FlappyTuckHighScore = pipePassed;
                     _highScore = pipePassed; 
                 }
                 _gameContext->gameStats->save();
@@ -472,7 +472,7 @@ void FlappyBirdScene::checkEnemyCollisions() {
     }
 }
 
-void FlappyBirdScene::manageObjectSpawning(unsigned long currentTime) {
+void FlappyTuckScene::manageObjectSpawning(unsigned long currentTime) {
     if (currentLevel >= LEVEL_START_COINS && currentTime >= _lastCoinSpawnTime + _nextCoinSpawnInterval) {
         int spawnChance = std::max(25, 75 - (currentLevel * 2)); // Increased base chance, minimum 25%
         if (random(100) < spawnChance) { 
@@ -496,7 +496,7 @@ void FlappyBirdScene::manageObjectSpawning(unsigned long currentTime) {
     }
 }
 
-void FlappyBirdScene::drawUI(Renderer& renderer) { 
+void FlappyTuckScene::drawUI(Renderer& renderer) { 
     renderer.setFont(u8g2_font_5x7_tf); 
     char buffer[20];
     snprintf(buffer, sizeof(buffer), "%d", pipePassed);
@@ -516,7 +516,7 @@ void FlappyBirdScene::drawUI(Renderer& renderer) {
     }
 }
 
-void FlappyBirdScene::drawGameOverScreen(Renderer& renderer) { 
+void FlappyTuckScene::drawGameOverScreen(Renderer& renderer) { 
     renderer.setFont(u8g2_font_6x10_tf); 
     int y_pos = SCREEN_HEIGHT / 2 - 24; 
     char buffer[30];

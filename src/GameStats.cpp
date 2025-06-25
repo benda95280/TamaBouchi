@@ -41,8 +41,8 @@ void GameStats::load() {
         currentWeather = (WeatherType)prefs.getUChar(PREF_KEY_WEATHER_TYPE, (uint8_t)WeatherType::NONE); 
         nextWeatherChangeTime = prefs.getULong(PREF_KEY_WEATHER_NEXT_CHANGE, 0); 
         completedPrequelStage = (PrequelStage)prefs.getUChar(PREF_KEY_PREQUEL_STAGE, (uint8_t)PrequelStage::NONE); 
-        flappyBirdCoins = prefs.getUInt(PREF_KEY_FLAPPY_COINS, 0);             // <<< LOAD NEW
-        flappyBirdHighScore = prefs.getUInt(PREF_KEY_FLAPPY_HIGH_SCORE, 0);     // <<< LOAD NEW
+        FlappyTuckCoins = prefs.getUInt(PREF_KEY_FLAPPY_COINS, 0);             // <<< LOAD NEW
+        FlappyTuckHighScore = prefs.getUInt(PREF_KEY_FLAPPY_HIGH_SCORE, 0);     // <<< LOAD NEW
         prefs.end(); 
         updateAgeBasedOnPoints(); 
         if (selectedLanguage != LANGUAGE_UNINITIALIZED) { 
@@ -79,8 +79,8 @@ void GameStats::save() {
         prefs.putUChar(PREF_KEY_WEATHER_TYPE, (uint8_t)currentWeather); 
         prefs.putULong(PREF_KEY_WEATHER_NEXT_CHANGE, nextWeatherChangeTime); 
         prefs.putUChar(PREF_KEY_PREQUEL_STAGE, (uint8_t)completedPrequelStage); 
-        prefs.putUInt(PREF_KEY_FLAPPY_COINS, flappyBirdCoins);                 // <<< SAVE NEW
-        prefs.putUInt(PREF_KEY_FLAPPY_HIGH_SCORE, flappyBirdHighScore);         // <<< SAVE NEW
+        prefs.putUInt(PREF_KEY_FLAPPY_COINS, FlappyTuckCoins);                 // <<< SAVE NEW
+        prefs.putUInt(PREF_KEY_FLAPPY_HIGH_SCORE, FlappyTuckHighScore);         // <<< SAVE NEW
         prefs.end(); 
     } else { 
         debugPrintf("GAME_STATS", "Save Error: opening Preferences '%s'.", PREF_STATS_NAMESPACE); 
@@ -97,8 +97,8 @@ void GameStats::reset() {
     selectedLanguage = LANGUAGE_UNINITIALIZED; 
     currentWeather = WeatherType::NONE; nextWeatherChangeTime = 0; 
     completedPrequelStage = PrequelStage::NONE; 
-    flappyBirdCoins = 0;         // <<< RESET NEW
-    flappyBirdHighScore = 0;     // <<< RESET NEW
+    FlappyTuckCoins = 0;         // <<< RESET NEW
+    FlappyTuckHighScore = 0;     // <<< RESET NEW
 }
 
 void GameStats::clearPrefs() { 

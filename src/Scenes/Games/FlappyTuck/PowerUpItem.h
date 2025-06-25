@@ -2,7 +2,7 @@
 #define POWERUP_ITEM_H
 
 #include "CollectibleObject.h"
-#include "FlappyBirdGraphics.h"
+#include "FlappyTuckGraphics.h"
 
 class PowerUpItem : public CollectibleObject {
 public:

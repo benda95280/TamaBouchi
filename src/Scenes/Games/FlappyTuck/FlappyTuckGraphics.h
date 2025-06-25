@@ -63,7 +63,7 @@ const unsigned char bmp_flappy_pipe_hazard[] PROGMEM = {
 };
 
 
-namespace FlappyBirdGraphics {
+namespace FlappyTuckGraphics {
     // Helper to get GraphicAssetData instances
     inline GraphicAssetData getCoinAsset() {
         return GraphicAssetData(bmp_flappy_coin, COIN_SPRITE_WIDTH, COIN_SPRITE_HEIGHT);

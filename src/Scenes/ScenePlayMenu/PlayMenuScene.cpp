@@ -11,12 +11,12 @@ extern QueueHandle_t keyQueue;
 
 PlayMenuScene* PlayMenuScene::currentInstance = nullptr;
 
-void PlayMenuScene::onFlappyBirdSelectWrapper() { if (currentInstance) currentInstance->onFlappyBirdSelect(); }
+void PlayMenuScene::onFlappyTuckSelectWrapper() { if (currentInstance) currentInstance->onFlappyTuckSelect(); }
 void PlayMenuScene::onBackSelectWrapper() { if (currentInstance) currentInstance->onBackSelect(); }
 
 PlayMenuScene::PlayMenuScene() :
     menuPagePlay(""), 
-    menuItemFlappyBird("", onFlappyBirdSelectWrapper),
+    menuItemFlappyTuck("", onFlappyTuckSelectWrapper),
     menuItemBack("", onBackSelectWrapper)
 {
     managesOwnDrawing = true;
@@ -47,7 +47,7 @@ void PlayMenuScene::init(GameContext& context) {
         menu.reset(new GEM_u8g2(*u8g2_ptr, GEM_POINTER_ROW, GEM_ITEMS_COUNT_AUTO));
         menu->setFontSmall(); 
 
-        menuPagePlay.addMenuItem(menuItemFlappyBird);
+        menuPagePlay.addMenuItem(menuItemFlappyTuck);
         menuPagePlay.addMenuItem(menuItemBack);
 
         menu->setMenuPageCurrent(menuPagePlay);
@@ -67,7 +67,7 @@ void PlayMenuScene::onEnter() {
 
     if (menu) {
         menuPagePlay.setTitle(loc(StringKey::ACTION_PLAYING)); 
-        menuItemFlappyBird.setTitle("Flappy Tama"); 
+        menuItemFlappyTuck.setTitle("Flappy Tama"); 
         menuItemBack.setTitle(loc(StringKey::HINT_EXIT)); 
         menu->drawMenu(); 
     }
@@ -90,8 +90,8 @@ void PlayMenuScene::processKeyPress(uint8_t keyCode) {
     if (menu) { menu->registerKeyPress(keyCode); }
 }
 
-void PlayMenuScene::onFlappyBirdSelect() {
-    debugPrint("SCENES", "PlayMenuScene: Flappy Bird selected.");
+void PlayMenuScene::onFlappyTuckSelect() {
+    debugPrint("SCENES", "PlayMenuScene: Flappy Tuck selected.");
     if (_gameContext && _gameContext->sceneManager) { 
         _gameContext->sceneManager->requestPushScene("FLAPPY_GAME");
     }

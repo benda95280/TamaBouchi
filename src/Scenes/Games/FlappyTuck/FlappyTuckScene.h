@@ -4,7 +4,7 @@
 #include <memory> 
 #include "../GameScene.h" 
 #include "GameObject.h"
-#include "FlappyBirdGraphics.h" 
+#include "FlappyTuckGraphics.h" 
 #include "CollectibleObject.h"  
 #include "EnemyObject.h"        
 #include "../../../System/GameContext.h" 
@@ -21,9 +21,9 @@ class PowerUpItem;
 class FlyingEnemy;
 
 
-class FlappyBirdScene : public GameScene { 
+class FlappyTuckScene : public GameScene { 
 public:
-    FlappyBirdScene(); 
+    FlappyTuckScene(); 
     // init is not overriding the base Scene::init(), it's a specific initializer for this scene.
     void init(GameContext& context); 
     void onEnter() override; 

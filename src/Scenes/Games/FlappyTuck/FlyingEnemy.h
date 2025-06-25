@@ -2,7 +2,7 @@
 #define FLYING_ENEMY_H
 
 #include "EnemyObject.h"
-#include "FlappyBirdGraphics.h"
+#include "FlappyTuckGraphics.h"
 
 class FlyingEnemy : public EnemyObject {
 public:

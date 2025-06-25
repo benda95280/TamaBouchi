@@ -1,7 +1,7 @@
 #include "Pipe.h"
 #include "Renderer.h" // Make sure Renderer is included if its methods are used directly here
 #include <cmath>      // For std::abs, round
-#include "FlappyBirdGraphics.h" // For hazard graphics
+#include "FlappyTuckGraphics.h" // For hazard graphics
 
 // Constructor - Initialize inherited 'x' and pipe-specific members
 Pipe::Pipe(int initialX, int screenHeight, int initialGapY, int initialWidth, int initialGapHeight)
@@ -96,7 +96,7 @@ void Pipe::draw(Renderer& renderer) {
         u8g2->setDrawColor(originalColor);
     }
 
-    GraphicAssetData hazardAsset = FlappyBirdGraphics::getPipeHazardAsset();
+    GraphicAssetData hazardAsset = FlappyTuckGraphics::getPipeHazardAsset();
     if (_hasTopHazard && hazardAsset.isValid()) {
         renderer.getU8G2()->drawXBMP(renderer.getXOffset() + x + (width - hazardAsset.width)/2, renderer.getYOffset() + gapY - hazardAsset.height, hazardAsset.width, hazardAsset.height, hazardAsset.bitmap);
     }

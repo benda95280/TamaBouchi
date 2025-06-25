@@ -2,7 +2,7 @@
 #define COIN_H
 
 #include "CollectibleObject.h"
-#include "FlappyBirdGraphics.h" // For graphics definitions
+#include "FlappyTuckGraphics.h" // For graphics definitions
 
 class Coin : public CollectibleObject {
 public:

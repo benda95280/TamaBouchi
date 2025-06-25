@@ -4,7 +4,7 @@
 #include <Arduino.h> // For basic types if needed
 
 // Forward declaration
-class FlappyBirdScene; // To allow passing scene context if absolutely needed (try to avoid)
+class FlappyTuckScene; // To allow passing scene context if absolutely needed (try to avoid)
 
 // <<< NEW: GameObjectType Enum >>>
 enum class GameObjectType {
@@ -34,7 +34,7 @@ public:
     // Check if the object is off the left side of the screen
     virtual bool isOffScreen() const = 0;
 
-    // Check collision with the bird (specific to Flappy Bird for now)
+    // Check collision with the bird (specific to Flappy Tuck for now)
     virtual bool collidesWith(float birdX, float birdY, float birdRadius) const = 0;
 
     // Getters for common properties needed by the scene (like positioning/scoring)
@@ -65,7 +65,7 @@ protected:
     // Constructor for GameObject to initialize renderer
     GameObject(Renderer& rendererRef) : _renderer(rendererRef), x(0) {} // Initialize x here too
     // Default constructor for classes like Pipe that don't use _renderer directly yet
-    // Make this one also initialize _renderer safely, perhaps pass from FlappyBirdScene.
+    // Make this one also initialize _renderer safely, perhaps pass from FlappyTuckScene.
     // For now, the existing Pipe constructor doesn't call a GameObject constructor.
     GameObject() : _renderer(*(Renderer*)nullptr), x(0) {} // Needs a valid ref or handle this differently
 };

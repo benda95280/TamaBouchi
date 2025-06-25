@@ -1,7 +1,7 @@
 #include "Coin.h"
 
 Coin::Coin(float x, float y) 
-    : CollectibleObject(x, y, CollectibleType::COIN, FlappyBirdGraphics::getCoinAsset()) {
+    : CollectibleObject(x, y, CollectibleType::COIN, FlappyTuckGraphics::getCoinAsset()) {
     // Coin-specific initialization if any
 }
 

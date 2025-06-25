@@ -32,7 +32,7 @@ private:
     U8G2* u8g2_ptr = nullptr; // Still used by GEM
 
     GEMPage menuPagePlay;
-    GEMItem menuItemFlappyBird;
+    GEMItem menuItemFlappyTuck;
     GEMItem menuItemBack;
 
     static PlayMenuScene* currentInstance; 
@@ -40,10 +40,10 @@ private:
     // Scene-specific context pointer
     GameContext* _gameContext = nullptr;
 
-    void onFlappyBirdSelect();
+    void onFlappyTuckSelect();
     void onBackSelect();
 
-    static void onFlappyBirdSelectWrapper();
+    static void onFlappyTuckSelectWrapper();
     static void onBackSelectWrapper();
 };
 

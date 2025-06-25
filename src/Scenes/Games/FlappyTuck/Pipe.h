@@ -36,7 +36,7 @@ public:
     void setFragile(bool fragile);
     void setHazards(bool top, bool bottom, int hazardH = 3);
 
-    // --- NEW: Public getters for FlappyBirdScene ---
+    // --- NEW: Public getters for FlappyTuckScene ---
     int getGapY() const { return gapY; }
     int getGapHeight() const { return gapHeight; }
     bool isFragile() const { return _isFragile; }

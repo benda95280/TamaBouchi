@@ -41,7 +41,7 @@ bool DEBUG_U8G2_WEBSTREAM = true;
 #include "Scenes/SceneStats/StatsScene.h"
 #include "Scenes/SceneMenuParameters/MenuParametersScene.h"
 #include "Scenes/Games/GameScene.h"
-#include "Scenes/Games/FlappyBird/FlappyBirdScene.h"
+#include "Scenes/Games/FlappyTuck/FlappyTuckScene.h"
 #include "Scenes/ScenePlayMenu/PlayMenuScene.h"
 #include "Scenes/Prequel/_0LanguageSelectScene.h"
 #include "Scenes/Prequel/_1AwakeningSparkScene.h"
@@ -188,7 +188,7 @@ Scene *createParamsScene_Factory(GameContext &context, void *configData)
     return scene;
 }
 Scene *createFlappyGameScene_Factory(GameContext &context, void *configData) { 
-    FlappyBirdScene* scene = new FlappyBirdScene();
+    FlappyTuckScene* scene = new FlappyTuckScene();
     if (scene) scene->init(context);
     return scene;
 }
