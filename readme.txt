@@ -18,7 +18,7 @@ This project is a Tamagotchi-like game based on the game engine framework "EDGE"
     *   Action Menu (Clean, Medicine, Feed, Play, Sleep)
     *   Stats & Parameters screens
     *   Sleeping state
-    *   Flappy Bird Minigame
+    *   Flappy Tuck Minigame
     *   Dialog Box system with formatting support
     *   Particle System
     *   Screen Effects (shake, fade)
