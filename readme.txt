@@ -72,9 +72,8 @@ This project utilizes several third-party libraries. Their original licenses mus
 
 1.  **PlatformIO IDE**: This project is structured for PlatformIO. It's recommended to use VS Code with the PlatformIO extension.
 2.  **Install ESP32 Plaform**: Ensure you have the Espressif 32 platform installed in PlatformIO.
-3.  **Libraries**: PlatformIO should automatically manage most library dependencies listed in `platformio.ini` (not provided, but assumed). You may need to manually add some libraries to your `lib` folder or ensure they are correctly specified in `platformio.ini`.
+3.  **Libraries**: PlatformIO should automatically manage most library dependencies listed in `platformio.ini` (not provided, but assumed).
     *   Ensure `FastNoiseLite.h` and `GEM_u8g2Rewrite.h` are correctly placed in your `include` path or a local library folder.
-    *   Ensure the `MycilaWebSerial-main` library is correctly placed in your `lib` folder.
 4.  **Hardware Connections**: Connect your ESP32, display, and buttons according to the pin definitions in `Main.ino` and `DisplayConfig.h`.
 5.  **Build & Upload**: Use PlatformIO to build and upload the firmware to your ESP32.
 
