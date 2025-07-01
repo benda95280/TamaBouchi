@@ -9,6 +9,7 @@
 #include "../../DebugUtils.h"
 #include "../../System/GameContext.h" 
 #include "SceneManager.h" 
+#include "../Prequel/PrequelManager.h" // <<< NEW INCLUDE
 
 
 extern String nextSceneName; 
@@ -103,7 +104,7 @@ void BootScene::onExit() {
 void BootScene::update(unsigned long deltaTime) {
     if (_transitionRequested) return; 
 
-    if (!_gameContext || !_gameContext->renderer || !_effectsManager || !_gameContext->sceneManager) { 
+    if (!_gameContext || !_gameContext->renderer || !_effectsManager || !_gameContext->sceneManager || !_gameContext->prequelManager) { 
         debugPrint("SCENES", "ERROR: BootScene::update - Critical context members are NULL!");
         return;
     }
@@ -112,8 +113,9 @@ void BootScene::update(unsigned long deltaTime) {
     _effectsManager->update(currentTime); 
 
     if (_effectsManager->isFadeOutToBlackCompleted()) { 
-        debugPrint("SCENES", "BootScene: Fade out reported complete by EffectsManager. Requesting POST_BOOT_TRANSITION.");
-        _gameContext->sceneManager->requestSetCurrentScene("POST_BOOT_TRANSITION"); 
+        debugPrint("SCENES", "BootScene: Fade out reported complete by EffectsManager. Determining next scene...");
+        String nextScene = _gameContext->prequelManager->getNextSceneNameAfterBootOrPrequel();
+        _gameContext->sceneManager->requestSetCurrentScene(nextScene); 
         _transitionRequested = true; 
         return; 
     }

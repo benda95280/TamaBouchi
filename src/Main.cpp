@@ -59,7 +59,6 @@ bool DEBUG_U8G2_WEBSTREAM = true;
 #include "DisplayConfig.h"
 #include <AsyncTCP.h>
 #include <ESPAsyncWebServer.h>
-#include <PrettyOTA.h>
 #include <Preferences.h>
 #include "espasyncbutton.hpp"
 #include "WiFiManager.h"
@@ -113,10 +112,9 @@ const gpio_num_t WAKEUP_BUTTON_PIN = GPIO_NUM_0;
 const gpio_num_t PHYSICAL_UP_BUTTON_PIN = (gpio_num_t)34;
 const gpio_num_t PHYSICAL_DOWN_BUTTON_PIN = (gpio_num_t)35;
 
-const char *WIFI_SSID = "maisondidie";
-const char *WIFI_PASSWORD = "didielaterrasse";
-
-PrettyOTA OTAUpdates;
+const char *WIFI_SSID = "testSSID";
+const char *WIFI_PASSWORD = "testPW";
+const char *OTA_PASSWORD = ""; // Set your OTA password here. Use "" or nullptr for no password.
 
 #define I2C_SDA 5
 #define I2C_SCL 4
@@ -302,13 +300,20 @@ void setup()
     gameContext.display = u8g2;
     gameContext.defaultFont = u8g2_font_5x7_tf;
 
-    // MODIFIED: Create a lambda function for logging and pass it to the engine.
     EDGELogger engineLogger = [](const char* message) {
         if (forwardedSerial_ptr) {
             forwardedSerial_ptr->println(message);
         }
     };
     engine = new EDGE(u8g2, displayConf, engineLogger);
+
+    // ******************* CRASH FIX ******************* //
+    // Populate the game context with pointers from the engine
+    gameContext.renderer = &engine->getRenderer();
+    gameContext.sceneManager = &engine->getSceneManager();
+    gameContext.inputManager = &engine->getInputManager();
+    // *********************************************** //
+
 
     debugPrint("SYSTEM", "Initializing character manager...");
     characterManager_ptr = CharacterManager::getInstance();
@@ -398,22 +403,20 @@ void setup()
 
     hardwareInputController_ptr->init(&gameContext, bluetoothManager_ptr, myControllers, &updateLastActivityTime);
 
-    SceneManager &sceneMgr = engine->getSceneManager();
-    
-    // MODIFIED: Capture `gameContext` in the lambda to pass to the factory functions.
-    sceneMgr.registerScene("BOOT", [&](void* configData) { return createBootScene_Factory(gameContext, configData); });
-    sceneMgr.registerScene("MAIN", [&](void* configData) { return createMainScene_Factory(gameContext, configData); });
-    sceneMgr.registerScene("STATS", [&](void* configData) { return createStatsScene_Factory(gameContext, configData); });
-    sceneMgr.registerScene("PARAMS", [&](void* configData) { return createParamsScene_Factory(gameContext, configData); });
-    sceneMgr.registerScene("FLAPPY_GAME", [&](void* configData) { return createFlappyGameScene_Factory(gameContext, configData); });
-    sceneMgr.registerScene("ACTIONS", [&](void* configData) { return createActionScene_Factory(gameContext, configData); });
-    sceneMgr.registerScene("SLEEPING", [&](void* configData) { return createSleepingScene_Factory(gameContext, configData); });
-    sceneMgr.registerScene("PLAY_MENU", [&](void* configData) { return createPlayMenuScene_Factory(gameContext, configData); });
-    sceneMgr.registerScene("LANGUAGE_SELECT_PREQUEL", [&](void* configData) { return createLangSelectPrequelScene_Factory(gameContext, configData); });
-    sceneMgr.registerScene("PREQUEL_STAGE_1", [&](void* configData) { return createPrequel1Scene_Factory(gameContext, configData); });
-    sceneMgr.registerScene("PREQUEL_STAGE_2", [&](void* configData) { return createPrequel2Scene_Factory(gameContext, configData); });
-    sceneMgr.registerScene("PREQUEL_STAGE_3", [&](void* configData) { return createPrequel3Scene_Factory(gameContext, configData); });
-    sceneMgr.registerScene("PREQUEL_STAGE_4", [&](void* configData) { return createPrequel4Scene_Factory(gameContext, configData); });
+    // SceneManager is now accessed via the context, which is guaranteed to be valid here
+    gameContext.sceneManager->registerScene("BOOT", [&](void* configData) { return createBootScene_Factory(gameContext, configData); });
+    gameContext.sceneManager->registerScene("MAIN", [&](void* configData) { return createMainScene_Factory(gameContext, configData); });
+    gameContext.sceneManager->registerScene("STATS", [&](void* configData) { return createStatsScene_Factory(gameContext, configData); });
+    gameContext.sceneManager->registerScene("PARAMS", [&](void* configData) { return createParamsScene_Factory(gameContext, configData); });
+    gameContext.sceneManager->registerScene("FLAPPY_GAME", [&](void* configData) { return createFlappyGameScene_Factory(gameContext, configData); });
+    gameContext.sceneManager->registerScene("ACTIONS", [&](void* configData) { return createActionScene_Factory(gameContext, configData); });
+    gameContext.sceneManager->registerScene("SLEEPING", [&](void* configData) { return createSleepingScene_Factory(gameContext, configData); });
+    gameContext.sceneManager->registerScene("PLAY_MENU", [&](void* configData) { return createPlayMenuScene_Factory(gameContext, configData); });
+    gameContext.sceneManager->registerScene("LANGUAGE_SELECT_PREQUEL", [&](void* configData) { return createLangSelectPrequelScene_Factory(gameContext, configData); });
+    gameContext.sceneManager->registerScene("PREQUEL_STAGE_1", [&](void* configData) { return createPrequel1Scene_Factory(gameContext, configData); });
+    gameContext.sceneManager->registerScene("PREQUEL_STAGE_2", [&](void* configData) { return createPrequel2Scene_Factory(gameContext, configData); });
+    gameContext.sceneManager->registerScene("PREQUEL_STAGE_3", [&](void* configData) { return createPrequel3Scene_Factory(gameContext, configData); });
+    gameContext.sceneManager->registerScene("PREQUEL_STAGE_4", [&](void* configData) { return createPrequel4Scene_Factory(gameContext, configData); });
 
     BootSceneConfig bootConfig;
     bootConfig.isWakingUp = gameContext.lastWakeUpInfo.wasWakeUpFromDeepSleep;
@@ -422,7 +425,7 @@ void setup()
 
 
     debugPrint("SYSTEM", "Display and Engine setup completed.");
-    wifiManager_ptr->init(WIFI_SSID, WIFI_PASSWORD, server_ptr, &OTAUpdates, u8g2);
+    wifiManager_ptr->init(WIFI_SSID, WIFI_PASSWORD, server_ptr, u8g2, OTA_PASSWORD, gameStats_ptr);
     server_ptr->begin();
     debugPrint("WIFI_MANAGER", "WiFi Manager initialized and HTTP server started for OTA.");
     debugPrint("SYSTEM", "Initializing WebSerial OnMessage...");
@@ -486,6 +489,11 @@ void setup()
 
 void loop()
 {
+    if (wifiManager_ptr && wifiManager_ptr->isRebootRequired()) {
+        delay(500); // Give a moment for any final serial/network traffic
+        ESP.restart();
+    }
+
     if (!engine || !gameContext.commandHandler || !gameContext.wifiManager ||
         !gameContext.bluetoothManager || !gameContext.gameStats || !gameContext.serialForwarder ||
         !gameContext.characterManager || !gameContext.deepSleepController ||
@@ -496,6 +504,8 @@ void loop()
         delay(1000);
         return;
     }
+
+    gameContext.wifiManager->handleOTA();
 
     if (wifiManager_ptr->isOTAInProgress()) {
         if (gameContext.serialForwarder) {
