@@ -19,9 +19,10 @@
 #include "DebugUtils.h" 
 #include <freertos/task.h>     
 #include "GlobalMappings.h" 
-#include "System/GameContext.h" // Ensure GameContext is included
-#include "esp_wifi.h" // For esp_wifi_set_ps
-#include "esp_bt.h"   // For esp_bt_controller_get_status
+#include "System/GameContext.h" 
+#include "esp_wifi.h" 
+#include "esp_bt.h"
+#include <map>
 
 extern unsigned long lastActivityTime; 
 
@@ -33,7 +34,7 @@ extern bool sceneChangeRequested;
 #define PROMPT_STR "Tama> " 
 
 SerialCommandHandler::SerialCommandHandler(GameContext& context) 
-    : _context(context) // Store context reference
+    : _context(context)
 {
 }
 
@@ -470,54 +471,54 @@ void SerialCommandHandler::setScene(const String& sceneName) {
     if (!_context.sceneManager) { _context.serialForwarder->println("Error: SceneManager not ready to set scene."); return; }
     if (_context.sceneManager->getFactoryByName(sceneName)) {
         _context.sceneManager->requestSetCurrentScene(sceneName); // Use the new method
-        // The following confirmation message is now redundant as SceneManager logs the request.
-        // _context.serialForwarder->printf("Scene change requested to: %s\n", sceneName.c_str());
     } else {
         _context.serialForwarder->printf("Error: No scene registered with name '%s'. Use 'list_scenes'.\n", sceneName.c_str());
     }
 }
 
-
 bool SerialCommandHandler::stringToWeatherType(const String& s, WeatherType& outType) {
-    if (s.equalsIgnoreCase("none")) { outType = WeatherType::NONE; return true; } 
-    if (s.equalsIgnoreCase("sunny")) { outType = WeatherType::SUNNY; return true; } 
-    // ... (rest of the comparisons, unchanged) ...
-    if (s.equalsIgnoreCase("cloudy")) { outType = WeatherType::CLOUDY; return true; } 
-    if (s.equalsIgnoreCase("rainy")) { outType = WeatherType::RAINY; return true; } 
-    if (s.equalsIgnoreCase("heavy_rain") || s.equalsIgnoreCase("heavyrain") || s.equalsIgnoreCase("heavy")) { outType = WeatherType::HEAVY_RAIN; return true; } 
-    if (s.equalsIgnoreCase("snowy")) { outType = WeatherType::SNOWY; return true; }         
-    if (s.equalsIgnoreCase("heavy_snow") || s.equalsIgnoreCase("heavysnow")) { outType = WeatherType::HEAVY_SNOW; return true; } 
-    if (s.equalsIgnoreCase("storm")) { outType = WeatherType::STORM; return true; } 
-    if (s.equalsIgnoreCase("rainbow")) { outType = WeatherType::RAINBOW; return true; } 
+    static const std::map<String, WeatherType> weatherMap = {
+        {"none", WeatherType::NONE}, {"sunny", WeatherType::SUNNY}, {"cloudy", WeatherType::CLOUDY},
+        {"rainy", WeatherType::RAINY}, {"heavy_rain", WeatherType::HEAVY_RAIN}, {"heavyrain", WeatherType::HEAVY_RAIN},
+        {"heavy", WeatherType::HEAVY_RAIN}, {"snowy", WeatherType::SNOWY}, {"heavy_snow", WeatherType::HEAVY_SNOW},
+        {"heavysnow", WeatherType::HEAVY_SNOW}, {"storm", WeatherType::STORM}, {"rainbow", WeatherType::RAINBOW}
+    };
+    auto it = weatherMap.find(s);
+    if (it != weatherMap.end()) {
+        outType = it->second;
+        return true;
+    }
     return false;
 }
 
 bool SerialCommandHandler::stringToSickness(const String& s, Sickness& outType) {
-    if (s.equalsIgnoreCase("none")) { outType = Sickness::NONE; return true; } 
-    if (s.equalsIgnoreCase("cold")) { outType = Sickness::COLD; return true; } 
-    // ... (rest of the comparisons, unchanged) ...
-    if (s.equalsIgnoreCase("hot")) { outType = Sickness::HOT; return true; } 
-    if (s.equalsIgnoreCase("diarrhea")) { outType = Sickness::DIARRHEA; return true; } 
-    if (s.equalsIgnoreCase("vomit")) { outType = Sickness::VOMIT; return true; } 
-    if (s.equalsIgnoreCase("headache")) { outType = Sickness::HEADACHE; return true; } 
+    static const std::map<String, Sickness> sicknessMap = {
+        {"none", Sickness::NONE}, {"cold", Sickness::COLD}, {"hot", Sickness::HOT},
+        {"diarrhea", Sickness::DIARRHEA}, {"vomit", Sickness::VOMIT}, {"headache", Sickness::HEADACHE}
+    };
+    auto it = sicknessMap.find(s);
+    if (it != sicknessMap.end()) {
+        outType = it->second;
+        return true;
+    }
     return false;
 }
 
 bool SerialCommandHandler::stringToPrequelStage(const String& s, PrequelStage& outStage) {
     String upperS = s; upperS.toUpperCase();
-    if (upperS == "NONE") { outStage = PrequelStage::NONE; return true; }
-    // ... (rest of the comparisons, unchanged) ...
-    if (upperS == "LANGUAGE_SELECTED" || upperS == "LANG_SEL" || upperS == "LANG") { outStage = PrequelStage::LANGUAGE_SELECTED; return true; }
-    if (upperS == "STAGE_1_AWAKENING_COMPLETE" || upperS == "S1_AWAKENING" || upperS == "S1") { outStage = PrequelStage::STAGE_1_AWAKENING_COMPLETE; return true; }
-    if (upperS == "STAGE_2_CONGLOMERATE_COMPLETE" || upperS == "S2_CONGLOMERATE" || upperS == "S2") { outStage = PrequelStage::STAGE_2_CONGLOMERATE_COMPLETE; return true; }
-    if (upperS == "STAGE_3_JOURNEY_COMPLETE" || upperS == "S3_JOURNEY" || upperS == "S3") { outStage = PrequelStage::STAGE_3_JOURNEY_COMPLETE; return true; }
-    if (upperS == "STAGE_4_SHELLWEAVE_COMPLETE" || upperS == "S4_SHELLWEAVE" || upperS == "S4") { outStage = PrequelStage::STAGE_4_SHELLWEAVE_COMPLETE; return true; }
-    if (upperS == "PREQUEL_FINISHED" || upperS == "FINISHED" || upperS == "FIN") { outStage = PrequelStage::PREQUEL_FINISHED; return true; }
-    char* endptr; long val = strtol(s.c_str(), &endptr, 10);
-    if (*endptr == '\0' && endptr != s.c_str()) { 
-        if (val >= static_cast<long>(PrequelStage::NONE) && val <= static_cast<long>(PrequelStage::PREQUEL_FINISHED)) {
-            outStage = static_cast<PrequelStage>(val); return true;
-        }
+    static const std::map<String, PrequelStage> stageMap = {
+        {"NONE", PrequelStage::NONE}, {"0", PrequelStage::NONE},
+        {"LANGUAGE_SELECTED", PrequelStage::LANGUAGE_SELECTED}, {"LANG_SEL", PrequelStage::LANGUAGE_SELECTED}, {"LANG", PrequelStage::LANGUAGE_SELECTED}, {"1", PrequelStage::LANGUAGE_SELECTED},
+        {"STAGE_1_AWAKENING_COMPLETE", PrequelStage::STAGE_1_AWAKENING_COMPLETE}, {"S1_AWAKENING", PrequelStage::STAGE_1_AWAKENING_COMPLETE}, {"S1", PrequelStage::STAGE_1_AWAKENING_COMPLETE}, {"2", PrequelStage::STAGE_1_AWAKENING_COMPLETE},
+        {"STAGE_2_CONGLOMERATE_COMPLETE", PrequelStage::STAGE_2_CONGLOMERATE_COMPLETE}, {"S2_CONGLOMERATE", PrequelStage::STAGE_2_CONGLOMERATE_COMPLETE}, {"S2", PrequelStage::STAGE_2_CONGLOMERATE_COMPLETE}, {"3", PrequelStage::STAGE_2_CONGLOMERATE_COMPLETE},
+        {"STAGE_3_JOURNEY_COMPLETE", PrequelStage::STAGE_3_JOURNEY_COMPLETE}, {"S3_JOURNEY", PrequelStage::STAGE_3_JOURNEY_COMPLETE}, {"S3", PrequelStage::STAGE_3_JOURNEY_COMPLETE}, {"4", PrequelStage::STAGE_3_JOURNEY_COMPLETE},
+        {"STAGE_4_SHELLWEAVE_COMPLETE", PrequelStage::STAGE_4_SHELLWEAVE_COMPLETE}, {"S4_SHELLWEAVE", PrequelStage::STAGE_4_SHELLWEAVE_COMPLETE}, {"S4", PrequelStage::STAGE_4_SHELLWEAVE_COMPLETE}, {"5", PrequelStage::STAGE_4_SHELLWEAVE_COMPLETE},
+        {"PREQUEL_FINISHED", PrequelStage::PREQUEL_FINISHED}, {"FINISHED", PrequelStage::PREQUEL_FINISHED}, {"FIN", PrequelStage::PREQUEL_FINISHED}, {"6", PrequelStage::PREQUEL_FINISHED}
+    };
+    auto it = stageMap.find(upperS);
+    if (it != stageMap.end()) {
+        outStage = it->second;
+        return true;
     }
     return false;
 }

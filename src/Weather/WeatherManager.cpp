@@ -16,15 +16,13 @@
 #include "Effects/Storm/StormWeatherEffect.h"
 #include "Effects/Rainbow/RainbowWeatherEffect.h"
 #include "Effects/BirdManager.h" 
-#include "../System/GameContext.h" // <<< NEW INCLUDE for GameContext
+#include "../System/GameContext.h"
+#include <map>
 
-// Remove global forwardedSerial_ptr if accessed via context
-// extern SerialForwarder* forwardedSerial_ptr; 
 
 static const WeatherInfo weatherDefinitions[] = {
     {WeatherType::NONE,        60, 5 * 60000, 15 * 60000},
     {WeatherType::SUNNY,       15, 3 * 60000, 10 * 60000},
-    // ... (rest of definitions unchanged) ...
     {WeatherType::CLOUDY,      15, 4 * 60000, 12 * 60000}, 
     {WeatherType::RAINY,       10, 2 * 60000, 6 * 60000},
     {WeatherType::HEAVY_RAIN,   5, 2 * 60000, 5 * 60000},
@@ -35,8 +33,8 @@ static const WeatherInfo weatherDefinitions[] = {
 };
 static const size_t weatherDefinitionCount = sizeof(weatherDefinitions) / sizeof(weatherDefinitions[0]);
 
-WeatherManager::WeatherManager(GameContext& context) : // Takes GameContext now
-    _context(context), // Store context reference
+WeatherManager::WeatherManager(GameContext& context) :
+    _context(context),
     _currentWeatherEffect(nullptr), 
     _birdManager(std::unique_ptr<BirdManager>(new BirdManager(*_context.renderer))), 
     _rainIntensityState(RainIntensityState::NONE),
@@ -57,8 +55,6 @@ WeatherManager::~WeatherManager() {
 
 void WeatherManager::createWeatherEffect(WeatherType type) {
     debugPrintf("WEATHER", "WeatherManager: Creating effect for type %d\n", (int)type);
-    // Pass _context.renderer, _context.gameStats, _context.serialForwarder if needed by effects
-    // For now, assuming effects use the renderer passed to their constructor if they store it
     switch (type) {
         case WeatherType::SUNNY:       _currentWeatherEffect.reset(new SunnyWeatherEffect(_context)); break;
         case WeatherType::CLOUDY:      _currentWeatherEffect.reset(new CloudyWeatherEffect(_context)); break;
@@ -94,7 +90,7 @@ void WeatherManager::createWeatherEffect(WeatherType type) {
 
 
 void WeatherManager::init() {
-    if (!_context.gameStats) { // Access via context
+    if (!_context.gameStats) {
         debugPrint("WEATHER", "ERROR: WeatherManager init failed - GameStats (via context) is null.");
         return;
     }
@@ -202,7 +198,7 @@ uint8_t WeatherManager::getIntensityAdjustedDensity() const {
 }
 
 void WeatherManager::updateWeatherState(unsigned long currentTime) {
-    if (!_context.gameStats) return; // Guard against null
+    if (!_context.gameStats) return;
     WeatherType t = _context.gameStats->currentWeather;
     if(t != WeatherType::RAINY && t != WeatherType::HEAVY_RAIN && t != WeatherType::STORM && t != WeatherType::SNOWY && t != WeatherType::HEAVY_SNOW) {
         _rainIntensityState = RainIntensityState::NONE;
@@ -314,27 +310,23 @@ void WeatherManager::forceWeather(WeatherType type, unsigned long durationMs) {
 }
 
 const char* WeatherManager::weatherTypeToString(WeatherType type) {
-    StringKey key = StringKey::WEATHER_UNKNOWN;
-    switch (type) {
-        case WeatherType::NONE: key = StringKey::WEATHER_NONE; break;
-        // ... (rest unchanged) ...
-        case WeatherType::SUNNY: key = StringKey::WEATHER_SUNNY; break;
-        case WeatherType::CLOUDY: key = StringKey::WEATHER_CLOUDY; break;
-        case WeatherType::RAINY: key = StringKey::WEATHER_RAINY; break;
-        case WeatherType::HEAVY_RAIN: key = StringKey::WEATHER_HEAVY_RAIN; break;
-        case WeatherType::SNOWY: key = StringKey::WEATHER_SNOWY; break;
-        case WeatherType::HEAVY_SNOW: key = StringKey::WEATHER_HEAVY_SNOW; break;
-        case WeatherType::STORM: key = StringKey::WEATHER_STORM; break;
-        case WeatherType::RAINBOW: key = StringKey::WEATHER_RAINBOW; break;
-        default: key = StringKey::WEATHER_UNKNOWN; break;
+    static const std::map<WeatherType, StringKey> weatherMap = {
+        {WeatherType::NONE, StringKey::WEATHER_NONE}, {WeatherType::SUNNY, StringKey::WEATHER_SUNNY},
+        {WeatherType::CLOUDY, StringKey::WEATHER_CLOUDY}, {WeatherType::RAINY, StringKey::WEATHER_RAINY},
+        {WeatherType::HEAVY_RAIN, StringKey::WEATHER_HEAVY_RAIN}, {WeatherType::SNOWY, StringKey::WEATHER_SNOWY},
+        {WeatherType::HEAVY_SNOW, StringKey::WEATHER_HEAVY_SNOW}, {WeatherType::STORM, StringKey::WEATHER_STORM},
+        {WeatherType::RAINBOW, StringKey::WEATHER_RAINBOW}
+    };
+    auto it = weatherMap.find(type);
+    if (it != weatherMap.end()) {
+        return loc(it->second);
     }
-    return loc(key); 
+    return loc(StringKey::WEATHER_UNKNOWN);
 }
 
 const char* WeatherManager::rainStateToString(RainIntensityState state) {
      switch (state) {
         case RainIntensityState::NONE: return "None";
-        // ... (rest unchanged) ...
         case RainIntensityState::STARTING: return "Starting";
         case RainIntensityState::PEAK: return "Peak";
         case RainIntensityState::ENDING: return "Ending";

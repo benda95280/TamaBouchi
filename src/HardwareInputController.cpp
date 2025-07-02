@@ -5,6 +5,7 @@
 #include "espasyncbutton.hpp" // Keep this here, as this is the adapter for this library
 #include "System/GameContext.h" 
 #include "GlobalMappings.h"
+#include <map>
 
 
 GameContext* HardwareInputController::_s_gameContext_ptr = nullptr;
@@ -35,6 +36,13 @@ void HardwareInputController::init(
 
 
 void HardwareInputController::handleButtonEvent_static(void* handler_args, esp_event_base_t base, int32_t id, void* event_data) {
+    static const std::map<int, EDGE_Button> buttonMapping = {
+        {PHYSICAL_UP_BUTTON_PIN, EDGE_Button::UP},
+        {PHYSICAL_DOWN_BUTTON_PIN, EDGE_Button::DOWN},
+        {VIRTUAL_BTN_OK, EDGE_Button::OK},
+        {VIRTUAL_BTN_LEFT, EDGE_Button::LEFT},
+        {VIRTUAL_BTN_RIGHT, EDGE_Button::RIGHT}
+    };
     EventMsg* temp_msg = reinterpret_cast<EventMsg*>(event_data);
     debugPrintf("HARDWARE_INPUT","HIC::handleButtonEvent_static: Received Event! Base='%s', ID(EventType)=%d, GPIO(Pin)=%d\n",
                                base, (int)id, (int)temp_msg->gpio);
@@ -44,28 +52,13 @@ void HardwareInputController::handleButtonEvent_static(void* handler_args, esp_e
         EventMsg* msg = reinterpret_cast<EventMsg*>(event_data);
         ESPButton::event_t specificEventType = ESPButton::int2event_t(id);
         
-    // --- This is the Adapter logic ---
-        // Translate from specific hardware (GPIO pin) to abstract engine button
-        EDGE_Button engineButton;
-        bool buttonMapped = true;
-
-        // Map physical and virtual buttons to the abstract engine types
-        if (msg->gpio == PHYSICAL_UP_BUTTON_PIN) {
-            engineButton = EDGE_Button::UP;
-        } else if (msg->gpio == PHYSICAL_DOWN_BUTTON_PIN) {
-            engineButton = EDGE_Button::DOWN;
-        } else if (msg->gpio == VIRTUAL_BTN_OK) {
-            engineButton = EDGE_Button::OK;
-        } else if (msg->gpio == VIRTUAL_BTN_LEFT) {
-            engineButton = EDGE_Button::LEFT;
-        } else if (msg->gpio == VIRTUAL_BTN_RIGHT) {
-            engineButton = EDGE_Button::RIGHT;
+        auto it = buttonMapping.find(msg->gpio);
+        if (it == buttonMapping.end()) {
+            debugPrintf("HARDWARE_INPUT", "HIC Warning: Unmapped GPIO pin %d", msg->gpio);
+            return;
         }
-        else {
-            buttonMapped = false;
-        }
+        EDGE_Button engineButton = it->second;
         
-        // Translate from specific library event to abstract engine event
         EDGE_Event engineEvent;
         bool eventMapped = true;
         switch(specificEventType) {
@@ -76,11 +69,10 @@ void HardwareInputController::handleButtonEvent_static(void* handler_args, esp_e
             default: eventMapped = false; break;
         }
         
-        // If both mappings were successful, process the abstract event
-        if (buttonMapped && eventMapped) {
+        if (eventMapped) {
             inputMgr.processButtonEvent(engineButton, engineEvent);
         } else {
-            debugPrintf("HARDWARE_INPUT", "HIC Warning: Unhandled button event (Pin: %d, Event: %d)", msg->gpio, (int)specificEventType);
+            debugPrintf("HARDWARE_INPUT", "HIC Warning: Unhandled event type: %d", (int)specificEventType);
         }
         
         if (_s_update_activity_callback) {
