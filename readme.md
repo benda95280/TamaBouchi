@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="TamaBanner.jpg" alt="TamaBouchi Banner" width="400"/>
+  <img src="TamaBanner.jpg" alt="TamaBouchi Banner" width="800"/>
 </p>
 
 <h1 align="center">TamaBouchi - A Retro Virtual Pet for ESP32</h1>
