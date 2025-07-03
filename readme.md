@@ -1,99 +1,113 @@
-# TamaBouchi ESP32 Project (EDGE Engine)
+<p align="center">
+  <img src="TamaBanner.jpg" alt="TamaBouchi Banner" width="400"/>
+</p>
 
-## Overview
+<h1 align="center">TamaBouchi - A Retro Virtual Pet for ESP32</h1>
 
-This project is a Tamagotchi-like game based on the game engine framework "EDGE" (ESP32 Display Game Engine), built for the ESP32 platform. It features a graphical display using U8g2, various game mechanics, interactive scenes, Bluetooth controller support, WiFi capabilities with OTA updates, and a web-based serial monitor, and web-based OLED Screen Viewer.
+<p align="center">
+  A Tamagotchi-like game for the ESP32, built on the powerful <strong>EDGE (ESP32 Display Game Engine)</strong> framework. Raise your own digital pet with interactive scenes, mini-games, and a dynamic world!
+</p>
 
-## Features
+<p align="center">
+  <!-- BADGES - Replace with your actual URLs -->
+  <img src="https://img.shields.io/badge/license-GPL--3.0-blue.svg" alt="License">
+  <img src="https://img.shields.io/badge/Platform-ESP32-purple.svg" alt="Platform">
+  <img src="https://img.shields.io/badge/Status-In--Development-orange.svg" alt="Status">
+</p>
 
-*   **Rewritten Game Engine (EDGE):**
-    *   Scene Management
-    *   Input Management (physical buttons, Bluetooth controllers)
-    *   Rendering Abstraction (using U8g2)
-    *   Entity-Component (basic structure)
-*   **Game Mechanics & Scenes:**
-    *   Character stats (age, health, happiness, hunger, etc.)
-    *   Prequel story/tutorial sequence with multiple stages
-    *   Main game loop with idle animations and character interaction
-    *   Action Menu (Clean, Medicine, Feed, Play, Sleep)
-    *   Stats & Parameters screens
-    *   Sleeping state
-    *   Flappy Tuck Minigame
-    *   Dialog Box system with formatting support
-    *   Particle System
-    *   Screen Effects (shake, fade)
-    *   Path Generation (using FastNoiseLite)
-    *   Weather System (Sunny, Cloudy, Rainy, Storm, Rainbow, Snow, etc.)
-    *   Animated background birds
-*   **Hardware & System:**
-    *   ESP32 based
-    *   SSD1306/SH1106 OLED display support (via U8g2)
-    *   Bluetooth Classic controller support (via Bluepad32)
-    *   WiFi connectivity
-    *   Over-The-Air (OTA) updates (via PrettyOTA)
-    *   WebSerial interface for commands and debugging (via MycilaWebSerial)
-    *   Deep Sleep functionality for power saving
-    *   Persistent storage for game state (via Preferences)
-    *   Localization support (English, French)
-*   **Development & Debugging:**
-    *   Modular scene-based architecture
-    *   Extensive debug logging system with feature-specific toggles
-    *   Serial command handler for testing and development
+---
 
-## Project Structure
+## ✨ Features
 
-*   `src/`: Main application code (`Main.cpp`), game scenes, character logic, system controllers, helper utilities.
-*   `include/`: Some shared header files like `FastNoiseLite.h` and `GEM_u8g2Rewrite.h`.
-*   `images/`: Sources of somes images
+TamaBouchi is more than just a simple virtual pet. It's a feature-rich experience powered by a custom game engine.
 
-## Hardware (Screen & Button could be virtual and manager with OLED Screen Viewer)
+<p align="center">
+  <!-- It's highly recommended to replace this with a GIF of your gameplay! -->
+  <img src="GAMEPLAY_GIF" alt="TamaBouchi Gameplay Demo (WIP)" width="300"/>
+  <br/>
+  <em>A peek at the TamaBouchi world!</em>
+</p>
 
-*   ESP32 Development Board
-*   SSD1306 or SH1106 OLED Display
-*   Physical buttons for input
+### Game & World
+*   🥚 **Life Cycle:** Watch your pet hatch and grow, keeping track of stats like health, happiness, and hunger.
+*   📜 **Story Mode:** An engaging prequel and tutorial sequence to introduce you to the world.
+*   🕹️ **Action Menu:** Interact with your pet: Feed, Clean, Heal, Play, and tuck it into Sleep.
+*   👾 **Flappy Tuck Mini-Game:** Jump in and play a fun mini-game to boost happiness!
+*   🌦️ **Dynamic Weather System:** The world changes with Sunny, Cloudy, Rainy, Stormy, Snowy, and even Rainbow conditions.
+*   🌍 **Living World:** Features like a particle system, screen effects (shake, fade), and animated background elements bring the world to life.
 
-## Software Dependencies & Third-Party Libraries
+### Engine & System (EDGE)
+*   ⚙️ **Custom Game Engine:** Built on "EDGE" (ESP32 Display Game Engine) for scene management, input handling, and rendering.
+*   🎮 **Bluetooth Control:** Natively supports Bluetooth classic controllers via **Bluepad32**.
+*   🌐 **Full Connectivity:**
+    *   **OTA Updates:** Update your device wirelessly.
+    *   **Web Serial Monitor:** A web-based interface for debugging and commands.
+    *   **Web OLED Viewer:** See the device's screen mirrored in your browser!
+*   🔋 **Power Saving:** Utilizes Deep Sleep functionality to save power.
+*   💾 **Persistent State:** Your game progress is saved automatically.
+*   🌐 **Localization:** Supports English and French.
 
-This project utilizes several third-party libraries. Their original licenses must be respected. Key dependencies include:
+---
 
-*   **ESP32-Game-Engine [EDGE]**: by Nicolas Bourré, licensed under **MIT**.
-*   **MycilaWebSerial**: by Mathieu Carbou, licensed under **GPL-3.0**.
-*   **U8g2 Library**: by Oliver Kraus, licensed under the **BSD 2-Clause License**.
-*   **GEM - Arduino General Encapsulated Menu**: by Armin Joachimsmeyer, licensed under **MIT License**.
-*   **FastNoiseLite**: by Auburn / Jordan Peck, licensed under the **MIT License**.
-*   **Bluepad32**: by Ricardo Quesada, licensed under the **Apache License 2.0**.
-*   **ESPAsyncWebServer & AsyncTCP**: licensed under **LGPL-3.0**.
-*   **PrettyOTA**: by Tomoyuki Furusawa, licensed under the **MIT License**.
-*   **ESPAsyncButton**: by Ardestan, licensed under the **MIT License**.
-*   **ESP-IDF Components** (including Preferences, FreeRTOS): Primarily **Apache License 2.0** and **MIT License**.
+## 🛠️ Hardware Requirements
 
+You can build your own TamaBouchi device with standard components. The screen and buttons can even be virtualized using the Web OLED Viewer!
 
-## Installation & Setup
+*   **ESP32** Development Board
+*   **SSD1306** or **SH1106** OLED Display
+*   Physical buttons for input (optional if using the web viewer or a Bluetooth controller)
 
-1.  **PlatformIO IDE**: This project is structured for PlatformIO. It's recommended to use VS Code with the PlatformIO extension.
-2.  **Install ESP32 Plaform**: Ensure you have the Espressif 32 platform installed in PlatformIO.
-3.  **Libraries**: PlatformIO should automatically manage most library dependencies listed in `platformio.ini` (not provided, but assumed).
-    *   Ensure `FastNoiseLite.h` and `GEM_u8g2Rewrite.h` are correctly placed in your `include` path or a local library folder.
-4.  **Hardware Connections**: Connect your ESP32, display, and buttons according to the pin definitions in `Main.ino` and `DisplayConfig.h`.
-5.  **Build & Upload**: Use PlatformIO to build and upload the firmware to your ESP32.
+---
 
-## Usage
+## 🚀 Getting Started
 
-*   Upon first boot or after a reset of language settings, you will be prompted to select a language.
-*   The device will then proceed through a prequel/tutorial sequence.
-*   Interact with the device using the physical buttons (Up, Down, OK) or a connected Bluetooth gamepad.
-*   Connect to the device's WiFi (if configured for AP mode or connected to your network) to access OTA updates, the WebSerial interface or OLED Screen Viewer. The WebSerial interface can be used for debugging and sending commands (Type 'help').
+This project is built for **PlatformIO**, so using VS Code with the PlatformIO extension is highly recommended.
 
-## Licensing
+1.  **Clone the Repository:**
+    ```bash
+    git clone https://github.com/benda95280/TamaBouchi.git
+    cd TamaBouchi
+    ```
+2.  **Open in PlatformIO:** Open the cloned folder in VS Code. PlatformIO should automatically detect the project and prompt you to install the required Espressif 32 platform.
+3.  **Check Dependencies:** PlatformIO will manage and install the library dependencies listed in `platformio.ini`.
+4.  **Connect Hardware:** Wire up your ESP32, OLED display, and buttons according to your pin definitions.
+5.  **Build & Upload:** Use the PlatformIO controls to build and upload the firmware to your ESP32.
 
-This project as a whole is licensed under the **GPL-3.0**.
+---
 
-You are free to use, study, share, and modify this software under the terms of the GPL-3.0. Any derivative works or distributions of this software (or works based on it) must also be licensed under the GPL-3.0.
+## 🎮 How to Play
 
-Please see the `LICENSE` file in this repository for the full text of the GPL-3.0.
+*   **Language Select:** On first boot, you'll be prompted to select a language.
+*   **Prequel:** The game begins with a story sequence to get you started.
+*   **Controls:** Use the physical buttons (Up, Down, OK) or connect a Bluetooth gamepad to interact with your pet.
+*   **Web Interface:** Connect your computer or phone to the device's Wi-Fi to access OTA updates, the WebSerial monitor (`type 'help'` for commands), and the live OLED Screen Viewer.
 
-The licenses for third-party components used in this project (listed under "Software Dependencies") must also be respected. Their respective license files should be included with any distribution.
+---
 
-## Contributing
+## 🤝 Contributing
 
-Contributions are welcome! Please feel free to submit issues or pull requests.
+Contributions are what make the open-source community such an amazing place to learn, inspire, and create. Any contributions you make are **greatly appreciated**.
+
+Please feel free to submit issues or pull requests!
+
+---
+
+## 📜 License
+
+This project is licensed under the **GPL-3.0**. See the `LICENSE` file for more information.
+
+The project relies on several third-party libraries, and their original licenses must be respected.
+
+### Third-Party Libraries
+
+| Library | Author | License |
+| :--- | :--- | :--- |
+| **ESP32-Game-Engine [EDGE]** | Nicolas Bourré | `MIT` |
+| **MycilaWebSerial** | Mathieu Carbou | `GPL-3.0` |
+| **U8g2 Library** | Oliver Kraus | `BSD 2-Clause` |
+| **GEM Menu** | Armin Joachimsmeyer | `MIT` |
+| **FastNoiseLite** | Auburn / Jordan Peck | `MIT` |
+| **Bluepad32** | Ricardo Quesada | `Apache 2.0` |
+| **ESPAsyncWebServer & AsyncTCP** | Hristo Gochkov | `LGPL-3.0` |
+| **PrettyOTA** | Tomoyuki Furusawa | `MIT` |
+| **ESPAsyncButton** | Ardestan | `MIT` |
