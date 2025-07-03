@@ -5,7 +5,7 @@
 <h1 align="center">TamaBouchi - A Retro Virtual Pet for ESP32</h1>
 
 <p align="center">
-  A Tamagotchi-like game for the ESP32, built on the powerful <strong>EDGE (ESP32 Display Game Engine)</strong> framework. Raise your own digital pet with interactive scenes, mini-games, and a dynamic world!
+  A Tamagotchi-like game for the ESP32. Raise your own digital pet with interactive scenes, mini-games, and a dynamic world!
 </p>
 
 <p align="center">
