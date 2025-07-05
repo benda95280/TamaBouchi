@@ -16,10 +16,23 @@ public:
     void drawForeground() override;
     WeatherType getType() const override;
 
+    void startFadeOut(unsigned long duration) override;
+
 private:
+    float _sunCenterX;
+    float _sunCenterY;
+    int _sunStartRadius;
     bool _sunIsLeft = true;
     float _sunRayAnimationPhase = 0.0f;
     unsigned long _lastSunRayUpdateTime = 0;
+
+    // Fade out members
+    bool _isFadingOut = false;
+    unsigned long _fadeOutStartTime = 0;
+    unsigned long _fadeOutDuration = 0;
+    float _initialFadeX = 0;
+    float _targetFadeX = 0;
+
 
     static const int SUN_INNER_RADIUS = 7;
     static const int SUN_OUTER_RADIUS = 15;

@@ -7,13 +7,10 @@
 #include <memory> 
 #include <vector>
 #include "Effects/BirdManager.h" 
-#include "../System/GameContext.h" // <<< NEW INCLUDE
+#include "../System/GameContext.h" 
 
 // Forward declaration
-// struct GameStats; // Now in GameContext
-// class Renderer;   // Now in GameContext
 class WeatherEffectBase; 
-// class SerialForwarder; // Now in GameContext
 
 struct WeatherInfo {
     WeatherType type;
@@ -24,7 +21,7 @@ struct WeatherInfo {
 
 class WeatherManager {
 public:
-    WeatherManager(GameContext& context); // Takes GameContext
+    WeatherManager(GameContext& context);
     ~WeatherManager(); 
 
     void init();
@@ -32,10 +29,14 @@ public:
     void drawBackground(bool allowDrawing);
     void drawForeground(bool allowDrawing);
     void forceWeather(WeatherType type, unsigned long durationMs);
+    void forceWind(float windFactor);
+    void forceAddSecondaryEffect(const String& effectName);
+    void forceSpawnBirds(int count);
 
     RainIntensityState getRainIntensityState() const;
     float getActualWindFactor() const;
     uint8_t getIntensityAdjustedDensity() const;
+    String getActiveEffectsString() const;
 
     static const char* weatherTypeToString(WeatherType type);
     static const char* rainStateToString(RainIntensityState state);
@@ -45,12 +46,10 @@ public:
 
 
 private:
-    GameContext& _context; // Store reference to GameContext
-    // Renderer& _renderer; // Access via _context.renderer
-    // GameStats* _gameStats_ptr; // Access via _context.gameStats
+    GameContext& _context;
     const uint8_t* _defaultFont = u8g2_font_5x7_tf;
 
-    std::unique_ptr<WeatherEffectBase> _currentWeatherEffect;
+    std::vector<std::unique_ptr<WeatherEffectBase>> _activeEffects;
     std::unique_ptr<BirdManager> _birdManager; 
 
     unsigned long _currentWeatherStartTime = 0;
@@ -63,18 +62,22 @@ private:
     unsigned long _windChangeStartTime = 0;
     unsigned long _nextWindTargetTime = 0;
     static const unsigned long WIND_TARGET_INTERVAL_MS = 60000;
-    static const unsigned long WIND_TRANSITION_DURATION_MS = 10000;
+    static const unsigned long WIND_TRANSITION_DURATION_MS = 15000;
     
     unsigned long _lastStatImpactTime = 0;
     static const unsigned long STAT_IMPACT_INTERVAL_MS = 5000;
 
+    WeatherType _pendingNextWeatherType = WeatherType::NONE;
+    bool _isFadingOut = false;
+    static const unsigned long FADEOUT_DURATION_MS = 30000;
 
     void updateWeatherState(unsigned long currentTime);
     void updateWind(unsigned long currentTime);
     void selectNextWeather(unsigned long currentTime);
     void applyStatImpacts(unsigned long currentTime);
-    void updateParticleDensity(WeatherType type);
-    void createWeatherEffect(WeatherType type);
+    void updateParticleDensity(unsigned long currentTime);
+    void updateWeatherComposition(WeatherType type);
+    WeatherType peekNextWeatherType() const;
 };
 
 #endif // WEATHER_MANAGER_H

@@ -1,4 +1,3 @@
-// --- START OF FILE src/Localization.h ---
 #ifndef LOCALIZATION_H
 #define LOCALIZATION_H
 
@@ -75,6 +74,9 @@ enum class StringKey {
     WEATHER_HEAVY_SNOW,
     WEATHER_STORM,
     WEATHER_RAINBOW,
+    WEATHER_WINDY,
+    WEATHER_FOG,
+    WEATHER_AURORA,
     WEATHER_UNKNOWN,
 
 
@@ -121,7 +123,7 @@ const char* const translations_en_arr[] = {
     "Match target pattern above.",
     "L/R moves, OK no action yet.",
     // Weather Names
-    "Clear", "Sunny", "Cloudy", "Rainy", "Heavy Rain", "Snowy", "Heavy Snow", "Storm", "Rainbow", "Unknown"
+    "Clear", "Sunny", "Cloudy", "Rainy", "Heavy Rain", "Snowy", "Heavy Snow", "Storm", "Rainbow", "Windy", "Fog", "Aurora", "Unknown"
 };
 
 const char* const translations_fr_arr[] = {
@@ -164,7 +166,7 @@ const char* const translations_fr_arr[] = {
     "Suivez le patron ci-dessus.",
     "G/D bouge, OK rien pour l'instant.",
     // Weather Names
-    "Degage", "Ensoleille", "Nuageux", "Pluvieux", "Forte Pluie", "Neigeux", "Fortes Neiges", "Orage", "Arc-en-ciel", "Inconnu"
+    "Degage", "Ensoleille", "Nuageux", "Pluvieux", "Forte Pluie", "Neigeux", "Fortes Neiges", "Orage", "Arc-en-ciel", "Venteux", "Brouillard", "Aurore", "Inconnu"
 };
 
 const char* const* const language_tables[] = {
@@ -186,4 +188,3 @@ inline const char* loc(StringKey key) {
 }
 
 #endif // LOCALIZATION_H
-// --- END OF FILE src/Localization.h ---

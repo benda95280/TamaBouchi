@@ -1,10 +1,9 @@
-// --- START OF FILE src/ParticleSystem.cpp ---
 #include "ParticleSystem.h"
 #include <cmath> // For round
 #include "DebugUtils.h"
+#include <algorithm> // For std::for_each, std::find_if
+#include <iterator> // For std::begin, std::end
 
-// Forward declare if needed
-// extern SerialForwarder* forwardedSerial_ptr;
 
 ParticleSystem::ParticleSystem(Renderer& renderer, const uint8_t* defaultFont)
     : _renderer(renderer), _defaultFont(defaultFont)
@@ -13,11 +12,20 @@ ParticleSystem::ParticleSystem(Renderer& renderer, const uint8_t* defaultFont)
 }
 
 int ParticleSystem::findInactiveParticle() {
-    for (int i = 0; i < MAX_PARTICLES; ++i) { if (!_particlePool[i].active) { return i; } } return -1;
+    auto it = std::find_if(std::begin(_particlePool), std::end(_particlePool), [](const Particle& p) {
+        return !p.active;
+    });
+
+    if (it != std::end(_particlePool)) {
+        return std::distance(std::begin(_particlePool), it);
+    }
+    return -1;
 }
 
 void ParticleSystem::reset() {
-    for (int i = 0; i < MAX_PARTICLES; ++i) { _particlePool[i].active = false; }
+    std::for_each(std::begin(_particlePool), std::end(_particlePool), [](Particle& p) {
+        p.active = false;
+    });
 }
 
 bool ParticleSystem::spawnParticle(float x, float y, float vx, float vy, unsigned long lifetimeMs,
@@ -57,13 +65,27 @@ void ParticleSystem::spawnAbsorbEffect(float targetX, float targetY, float sourc
 
 
 void ParticleSystem::update(unsigned long currentTime, float deltaTime) {
-    // (deltaTime parameter is currently unused but kept for potential future physics)
-    for (int i = 0; i < MAX_PARTICLES; ++i) {
-        if (!_particlePool[i].active) continue; Particle& p = _particlePool[i];
-        if (currentTime - p.spawnTime >= p.lifetimeMs) { p.active = false; continue; }
-        p.x += p.vx; p.y += p.vy;
-        if (p.visualType == ParticleVisualType::ANIMATED_SPRITESHEET && p.assetData && p.assetData->isSpritesheet()) { if (currentTime - p.lastFrameUpdateTime >= p.assetData->frameDurationMs) { p.lastFrameUpdateTime += p.assetData->frameDurationMs; p.currentFrame++; if (p.currentFrame >= p.assetData->frameCount) { p.currentFrame = 0; } } }
-    }
+    std::for_each(std::begin(_particlePool), std::end(_particlePool), [&](Particle& p) {
+        if (!p.active) return;
+        
+        if (currentTime - p.spawnTime >= p.lifetimeMs) {
+            p.active = false;
+            return;
+        }
+
+        p.x += p.vx;
+        p.y += p.vy;
+
+        if (p.visualType == ParticleVisualType::ANIMATED_SPRITESHEET && p.assetData && p.assetData->isSpritesheet()) {
+            if (currentTime - p.lastFrameUpdateTime >= p.assetData->frameDurationMs) {
+                p.lastFrameUpdateTime += p.assetData->frameDurationMs;
+                p.currentFrame++;
+                if (p.currentFrame >= p.assetData->frameCount) {
+                    p.currentFrame = 0;
+                }
+            }
+        }
+    });
 }
 
 void ParticleSystem::draw() {
@@ -71,15 +93,11 @@ void ParticleSystem::draw() {
     if (!u8g2) return;
 
     uint8_t originalDrawColor = u8g2->getDrawColor();
-    // uint8_t originalBitmapMode = u8g2->getBitmapMode(); // Cannot get bitmap mode
-    // Store the font that was set before this draw call, if possible, or assume a system default
-    // For now, we will ensure ParticleSystem's defaultFont is restored.
-    const uint8_t* fontBeforeParticleDraw = _defaultFont; // Best guess, or require it to be passed
+    const uint8_t* fontBeforeParticleDraw = _defaultFont; 
 
-    for (int i = 0; i < MAX_PARTICLES; ++i) {
-        if (!_particlePool[i].active) continue;
+    std::for_each(std::begin(_particlePool), std::end(_particlePool), [&](const Particle& p) {
+        if (!p.active) return;
 
-        const Particle& p = _particlePool[i];
         int drawX = _renderer.getXOffset() + static_cast<int>(round(p.x));
         int drawY = _renderer.getYOffset() + static_cast<int>(round(p.y));
 
@@ -113,13 +131,10 @@ void ParticleSystem::draw() {
                 }
                 break;
         }
-    }
+    });
 
-    // Restore the default font (of the ParticleSystem) and draw color at the end
-    if (_defaultFont) { // Ensure _defaultFont is not null
+    if (_defaultFont) {
          u8g2->setFont(_defaultFont);
     }
     u8g2->setDrawColor(originalDrawColor);
-    // u8g2->setBitmapMode(0); // Set to a known default if necessary
 }
-// --- END OF FILE src/ParticleSystem.cpp ---

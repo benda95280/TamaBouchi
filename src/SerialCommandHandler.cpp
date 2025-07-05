@@ -171,11 +171,12 @@ void SerialCommandHandler::processSerialCommand(String command) {
     } else if (command.equalsIgnoreCase("get_weather")) {
         if (!_context.weatherManager) { _context.serialForwarder->println("Error: WeatherManager not ready."); return; } 
         long remainingMs = (long)_context.gameStats->nextWeatherChangeTime - (long)millis(); if (remainingMs < 0) remainingMs = 0; 
-        _context.serialForwarder->printf("Current Weather: %s (%d)\n", WeatherManager::weatherTypeToString(_context.gameStats->currentWeather), (int)_context.gameStats->currentWeather); 
+        _context.serialForwarder->printf("Primary Weather: %s (%d)\n", WeatherManager::weatherTypeToString(_context.gameStats->currentWeather), (int)_context.gameStats->currentWeather); 
+        _context.serialForwarder->printf("Active Effects: %s\n", _context.weatherManager->getActiveEffectsString().c_str());
         _context.serialForwarder->printf("Next Change In: %ld ms (~%ld mins)\n", remainingMs, remainingMs / 60000); 
-        _context.serialForwarder->printf("Rain Intensity State: %s\n", WeatherManager::rainStateToString(_context.weatherManager->getRainIntensityState())); 
-        _context.serialForwarder->printf("Actual Wind Factor: %.2f\n", _context.weatherManager->getActualWindFactor()); 
-        _context.serialForwarder->printf("Rain Drop Density: %d%%\n", _context.weatherManager->getIntensityAdjustedDensity());
+        _context.serialForwarder->printf("Intensity State: %s\n", WeatherManager::rainStateToString(_context.weatherManager->getRainIntensityState())); 
+        _context.serialForwarder->printf("Wind Factor: %.2f\n", _context.weatherManager->getActualWindFactor()); 
+        _context.serialForwarder->printf("Particle Density: %d%%\n", _context.weatherManager->getIntensityAdjustedDensity());
     } else if (command.startsWith("set_weather ")) {
         if (!_context.weatherManager) { _context.serialForwarder->println("Error: WeatherManager not ready."); return; } 
         String args = command.substring(12); args.trim(); int spaceIndex = args.indexOf(' '); 
@@ -194,6 +195,20 @@ void SerialCommandHandler::processSerialCommand(String command) {
             _context.weatherManager->forceWeather(newType, durationMs); 
             _context.serialForwarder->printf("Weather forced to %s for %lu ms.\n", WeatherManager::weatherTypeToString(newType), durationMs); 
         }
+    } else if (command.startsWith("add_effect ")) {
+        if (!_context.weatherManager) { _context.serialForwarder->println("Error: WeatherManager not ready."); return; }
+        String effectStr = command.substring(11);
+        effectStr.trim();
+        _context.weatherManager->forceAddSecondaryEffect(effectStr);
+    } else if (command.startsWith("set_wind ")) {
+        if (!_context.weatherManager) { _context.serialForwarder->println("Error: WeatherManager not ready."); return; }
+        String windStr = command.substring(9);
+        windStr.trim();
+        float windFactor = windStr.toFloat();
+        _context.weatherManager->forceWind(windFactor);
+        _context.serialForwarder->printf("Wind factor transition forced to %.2f\n", windFactor);
+    } else if (command.startsWith("spawn_birds")) {
+        handleSpawnBirds(command.substring(11));
     } else if (command.startsWith("set_sickness ")) {
          if (!_context.characterManager) { _context.serialForwarder->println("Error: CharacterManager not ready."); return; } 
          String args = command.substring(13); args.trim(); int spaceIndex = args.indexOf(' '); 
@@ -320,8 +335,11 @@ void SerialCommandHandler::printHelp() {
     _context.serialForwarder->println("  reset <tama|settings|all> - Resets Tama stats, WiFi/BT settings, or all.");
     _context.serialForwarder->println("  get_stats                 - Displays current game stats.");
     _context.serialForwarder->println("  add_points <amount>       - Adds points to the tama.");
-    _context.serialForwarder->println("  get_weather               - Shows current weather, next change, intensity, wind.");
-    _context.serialForwarder->println("  set_weather <type> [dur]  - Sets weather (none,sunny,cloudy,rainy,heavy_rain,snowy,heavy_snow,storm,rainbow) [opt. duration mins]."); 
+    _context.serialForwarder->println("  get_weather               - Shows current weather composition and info.");
+    _context.serialForwarder->println("  set_weather <type> [dur]  - Sets weather (none,sunny,cloudy,rainy,storm,etc) [opt. duration mins]."); 
+    _context.serialForwarder->println("  add_effect <fog|aurora|windy> - Adds a compatible secondary weather effect.");
+    _context.serialForwarder->println("  set_wind <factor>         - Sets wind factor (e.g., -1.5, 0.8, 0.0).");
+    _context.serialForwarder->println("  spawn_birds [count]       - Spawns a number of birds (default 3).");
     _context.serialForwarder->println("  set_sickness <type> [dur] - Sets sickness (none,cold,hot,diarrhea,headache) [opt. duration hours].");
     _context.serialForwarder->println("  set_fatigue <0-100>       - Sets current fatigue level.");
     _context.serialForwarder->println("  force_sleep [minutes]     - Forces deep sleep. Opt. sets virtual sleep duration.");
@@ -458,6 +476,25 @@ void SerialCommandHandler::handleForceSleep(const String& args) {
     }
     _context.deepSleepController->goToSleep(true, forcedDurationMinutes);
 }
+
+void SerialCommandHandler::handleSpawnBirds(const String& args) {
+    if (!_context.weatherManager) { 
+        _context.serialForwarder->println("Error: WeatherManager not ready."); 
+        return; 
+    }
+    int count = 3; // Default
+    String trimmedArgs = args;
+    trimmedArgs.trim();
+    if (trimmedArgs.length() > 0) {
+        int parsedCount = trimmedArgs.toInt();
+        if (parsedCount > 0) {
+            count = parsedCount;
+        }
+    }
+    _context.weatherManager->forceSpawnBirds(count);
+    _context.serialForwarder->printf("Spawning %d bird(s).\n", count);
+}
+
 
 void SerialCommandHandler::listScenes() {
     _context.serialForwarder->println("Registered Scene Names:");

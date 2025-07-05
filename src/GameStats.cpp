@@ -3,6 +3,7 @@
 #include <cmath>             
 #include "character/CharacterManager.h" 
 #include "DebugUtils.h"
+#include <map>
 
 extern SerialForwarder* forwardedSerial_ptr;
 extern CharacterManager* characterManager_ptr; 
@@ -41,8 +42,8 @@ void GameStats::load() {
         currentWeather = (WeatherType)prefs.getUChar(PREF_KEY_WEATHER_TYPE, (uint8_t)WeatherType::NONE); 
         nextWeatherChangeTime = prefs.getULong(PREF_KEY_WEATHER_NEXT_CHANGE, 0); 
         completedPrequelStage = (PrequelStage)prefs.getUChar(PREF_KEY_PREQUEL_STAGE, (uint8_t)PrequelStage::NONE); 
-        FlappyTuckCoins = prefs.getUInt(PREF_KEY_FLAPPY_COINS, 0);             // <<< LOAD NEW
-        FlappyTuckHighScore = prefs.getUInt(PREF_KEY_FLAPPY_HIGH_SCORE, 0);     // <<< LOAD NEW
+        FlappyTuckCoins = prefs.getUInt(PREF_KEY_FLAPPY_COINS, 0);
+        FlappyTuckHighScore = prefs.getUInt(PREF_KEY_FLAPPY_HIGH_SCORE, 0);
         prefs.end(); 
         updateAgeBasedOnPoints(); 
         if (selectedLanguage != LANGUAGE_UNINITIALIZED) { 
@@ -79,8 +80,8 @@ void GameStats::save() {
         prefs.putUChar(PREF_KEY_WEATHER_TYPE, (uint8_t)currentWeather); 
         prefs.putULong(PREF_KEY_WEATHER_NEXT_CHANGE, nextWeatherChangeTime); 
         prefs.putUChar(PREF_KEY_PREQUEL_STAGE, (uint8_t)completedPrequelStage); 
-        prefs.putUInt(PREF_KEY_FLAPPY_COINS, FlappyTuckCoins);                 // <<< SAVE NEW
-        prefs.putUInt(PREF_KEY_FLAPPY_HIGH_SCORE, FlappyTuckHighScore);         // <<< SAVE NEW
+        prefs.putUInt(PREF_KEY_FLAPPY_COINS, FlappyTuckCoins);
+        prefs.putUInt(PREF_KEY_FLAPPY_HIGH_SCORE, FlappyTuckHighScore);
         prefs.end(); 
     } else { 
         debugPrintf("GAME_STATS", "Save Error: opening Preferences '%s'.", PREF_STATS_NAMESPACE); 
@@ -97,8 +98,8 @@ void GameStats::reset() {
     selectedLanguage = LANGUAGE_UNINITIALIZED; 
     currentWeather = WeatherType::NONE; nextWeatherChangeTime = 0; 
     completedPrequelStage = PrequelStage::NONE; 
-    FlappyTuckCoins = 0;         // <<< RESET NEW
-    FlappyTuckHighScore = 0;     // <<< RESET NEW
+    FlappyTuckCoins = 0;
+    FlappyTuckHighScore = 0;
 }
 
 void GameStats::clearPrefs() { 
@@ -224,7 +225,18 @@ uint8_t GameStats::getModifiedFatigue() const { return fatigue; }
 uint8_t GameStats::getModifiedDirty() const { return dirty; }
 uint8_t GameStats::getModifiedHealth() const { return health; }
 
-const char* GameStats::getSicknessString() const { switch(sickness){ case Sickness::NONE: return loc(StringKey::SICKNESS_NONE); case Sickness::COLD: return loc(StringKey::SICKNESS_COLD); case Sickness::HOT: return loc(StringKey::SICKNESS_HOT); case Sickness::DIARRHEA: return loc(StringKey::SICKNESS_DIARRHEA); case Sickness::VOMIT: return loc(StringKey::SICKNESS_VOMIT); case Sickness::HEADACHE: return loc(StringKey::SICKNESS_HEADACHE); default: return loc(StringKey::SICKNESS_UNKNOWN); } }
+const char* GameStats::getSicknessString() const {
+    static const std::map<Sickness, StringKey> sicknessMap = {
+        {Sickness::NONE, StringKey::SICKNESS_NONE}, {Sickness::COLD, StringKey::SICKNESS_COLD},
+        {Sickness::HOT, StringKey::SICKNESS_HOT}, {Sickness::DIARRHEA, StringKey::SICKNESS_DIARRHEA},
+        {Sickness::VOMIT, StringKey::SICKNESS_VOMIT}, {Sickness::HEADACHE, StringKey::SICKNESS_HEADACHE}
+    };
+    auto it = sicknessMap.find(sickness);
+    if (it != sicknessMap.end()) {
+        return loc(it->second);
+    }
+    return loc(StringKey::SICKNESS_UNKNOWN);
+}
 
 bool GameStats::isSick() const { return sickness != Sickness::NONE; }
 bool GameStats::updateSickness(unsigned long currentTime) { if (isSick() && sicknessEndTime > 0 && currentTime >= sicknessEndTime) { setSickness(Sickness::NONE); return true; } return false; }
@@ -394,4 +406,3 @@ bool GameStats::updateAccumulatedStats(unsigned long currentTime, unsigned long 
     
     return statsActuallyChanged;
 }
-// --- END OF FILE src/GameStats.cpp ---

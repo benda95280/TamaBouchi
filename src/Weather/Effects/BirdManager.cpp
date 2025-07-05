@@ -1,156 +1,234 @@
 #include "BirdManager.h"
-#include <U8g2lib.h> 
-#include <algorithm> 
-#include <cmath>     
+#include <U8g2lib.h>
+#include <algorithm>
+#include <cmath>
+#include <iterator>
 
 // 5px width, 6px total height, 2 frames of 5x3 each
-const unsigned char epd_bitmap_New_Piskel_Birds [] PROGMEM = {
-	0x18, 0x30, 0xf8, // Frame 1 (3 bytes)
+const unsigned char epd_bitmap_New_Piskel_Birds[] PROGMEM = {
+    0x18, 0x30, 0xf8, // Frame 1 (3 bytes)
     0x00, 0x00, 0xf8  // Frame 2 (3 bytes)
 };
 
-
-BirdManager::BirdManager(Renderer& renderer) 
-    : _renderer(renderer) {
-    _birdBitmap = epd_bitmap_New_Piskel_Birds; 
+BirdManager::BirdManager(Renderer &renderer)
+    : _renderer(renderer)
+{
+    _birdBitmap = epd_bitmap_New_Piskel_Birds;
     debugPrint("WEATHER", "BirdManager created.");
 }
 
-void BirdManager::init(unsigned long currentTime) {
-    for (int i = 0; i < MAX_BIRDS; ++i) {
-        _birds[i].active = false;
-    }
+void BirdManager::init(unsigned long currentTime)
+{
+    std::for_each(std::begin(_birds), std::end(_birds), [](Bird &b)
+                  { b.active = false; });
     _lastBirdSpawnCheckTime = currentTime;
     _nextBirdSpawnInterval = random(MIN_BIRD_SPAWN_INTERVAL_MS, MAX_BIRD_SPAWN_INTERVAL_MS + 1);
     _isActive = false; // Start inactive, WeatherManager will activate
     debugPrint("WEATHER", "BirdManager initialized.");
 }
 
-void BirdManager::setActive(bool active) {
-    if (_isActive == active) return;
+void BirdManager::setActive(bool active, const char* reason)
+{
+    if (_isActive == active)
+        return;
     _isActive = active;
-    debugPrintf("WEATHER", "BirdManager active state set to: %s", _isActive ? "true" : "false");
-    if (!_isActive) { // If becoming inactive, clear existing birds
-        for (int i = 0; i < MAX_BIRDS; ++i) {
-            _birds[i].active = false;
-        }
+    
+    if (reason && strlen(reason) > 0) {
+        debugPrintf("WEATHER", "BirdManager active state set to: %s. Reason: %s", _isActive ? "true" : "false", reason);
     } else {
+        debugPrintf("WEATHER", "BirdManager active state set to: %s", _isActive ? "true" : "false");
+    }
+
+    if (!_isActive)
+    { // If becoming inactive, clear existing birds
+        std::for_each(std::begin(_birds), std::end(_birds), [](Bird &b)
+                      { b.active = false; });
+    }
+    else
+    {
         // Reset spawn timer when activated to potentially spawn birds sooner
         _lastBirdSpawnCheckTime = millis();
         _nextBirdSpawnInterval = random(MIN_BIRD_SPAWN_INTERVAL_MS, MAX_BIRD_SPAWN_INTERVAL_MS + 1) / 2; // Shorter initial interval
     }
 }
 
-void BirdManager::setWindFactor(float windFactor) {
+void BirdManager::setWindFactor(float windFactor)
+{
     _currentWindFactor = windFactor;
-    // Wind factor could adjust bird speed if desired:
-    // e.g., birds flying against strong wind are slower, with strong wind are faster.
-    // For now, wind factor is not directly used for bird speed.
 }
 
-
-void BirdManager::spawnBirds(unsigned long currentTime) {
+void BirdManager::spawnBirds(unsigned long currentTime)
+{
     int birdsToSpawnThisTime = random(MIN_BIRDS_TO_SPAWN, MAX_BIRDS_TO_SPAWN + 1);
     int spawnedCount = 0;
-    for (int i = 0; i < MAX_BIRDS && spawnedCount < birdsToSpawnThisTime; ++i) {
-        if (!_birds[i].active) {
-            resetBird(_birds[i], true); // Pass true for initial spawn
+
+    for (int i = 0; i < MAX_BIRDS && spawnedCount < birdsToSpawnThisTime; ++i)
+    {
+        if (!_birds[i].active)
+        {
+            resetBird(_birds[i], true);                                                      // Pass true for initial spawn
             _birds[i].lastFrameChangeTime = currentTime + random(0, BIRD_FRAME_DURATION_MS); // Stagger animation start
             spawnedCount++;
         }
     }
-    if (spawnedCount > 0) debugPrintf("WEATHER", "BirdManager: Spawned %d birds.", spawnedCount);
+    if (spawnedCount > 0)
+        debugPrintf("WEATHER", "BirdManager: Spawned %d birds.", spawnedCount);
 }
 
-void BirdManager::resetBird(Bird& bird, bool initialSpawn) {
+void BirdManager::spawnBirdsOnDemand(int count) {
+    if (!_isActive) {
+        setActive(true, "On-demand spawn command");
+    }
+    int spawnedCount = 0;
+    unsigned long currentTime = millis();
+    for (int i = 0; i < MAX_BIRDS && spawnedCount < count; ++i) {
+        if (!_birds[i].active) {
+            resetBird(_birds[i], true); // true for initial spawn logic
+            _birds[i].lastFrameChangeTime = currentTime + random(0, BIRD_FRAME_DURATION_MS);
+            spawnedCount++;
+        }
+    }
+    if (spawnedCount > 0) {
+        debugPrintf("WEATHER", "BirdManager: Spawned %d birds on demand.", spawnedCount);
+    }
+}
+
+void BirdManager::resetBird(Bird &bird, bool initialSpawn)
+{
     bird.active = true;
-    bird.y = (float)random(0, BIRD_SPAWN_Y_MAX + 1); 
-    // Ensure birds spawn off-screen right
-    bird.x = (float)(_renderer.getWidth() + random(5, BIRD_SPRITE_WIDTH * 2)); 
-    
+    bird.baseY = (float)random(0, BIRD_SPAWN_Y_MAX + 1);
+    bird.currentY = bird.baseY;
+    bird.x = (float)(_renderer.getWidth() + random(5, BIRD_SPRITE_WIDTH * 2));
+
     float speedMultiplier = (float)random((int)(MIN_BIRD_SPEED_X_FACTOR * 100), (int)(MAX_BIRD_SPEED_X_FACTOR * 100) + 1) / 100.0f;
     bird.speedX = BASE_BIRD_SPEED_X * speedMultiplier;
 
-    // Apply wind effect subtly if desired:
-    // bird.speedX += _currentWindFactor * 0.1f; // Example: wind pushes birds slightly
-
     bird.currentFrame = random(0, BIRD_FRAME_COUNT);
-    bird.lastFrameChangeTime = millis(); // Reset frame time on spawn
+    bird.lastFrameChangeTime = millis();
+
+    // New properties for size and wavy movement
+    bird.isBig = (random(100) < 30);
+    bird.targetYOffset = 0.0f;
+    bird.waveTransitionStartTime = millis();
+    bird.nextWaveChangeTime = millis() + random(MIN_WAVE_INTERVAL_MS, MAX_WAVE_INTERVAL_MS + 1);
 }
 
-
-void BirdManager::update(unsigned long currentTime) {
-    if (!_isActive) {
+void BirdManager::update(unsigned long currentTime)
+{
+    if (!_isActive)
+    {
         return;
     }
 
-    // Check if it's time to attempt spawning new birds
-    if (currentTime - _lastBirdSpawnCheckTime >= _nextBirdSpawnInterval) {
+    if (currentTime - _lastBirdSpawnCheckTime >= _nextBirdSpawnInterval)
+    {
         spawnBirds(currentTime);
         _lastBirdSpawnCheckTime = currentTime;
         _nextBirdSpawnInterval = random(MIN_BIRD_SPAWN_INTERVAL_MS, MAX_BIRD_SPAWN_INTERVAL_MS + 1);
     }
 
-    // Update active birds
-    for (int i = 0; i < MAX_BIRDS; ++i) {
-        if (_birds[i].active) {
-            _birds[i].x += _birds[i].speedX;
-            // Apply a slight vertical bobbing or drift based on wind if desired
-             _birds[i].y += _currentWindFactor * 0.05f; // Very subtle vertical drift with wind
-             if (_birds[i].y < 0) _birds[i].y = 0;
-             if (_birds[i].y > BIRD_SPAWN_Y_MAX + 2) _birds[i].y = BIRD_SPAWN_Y_MAX + 2;
+    std::for_each(std::begin(_birds), std::end(_birds), [&](Bird &bird)
+                  {
+        if (bird.active) {
+            bird.x += bird.speedX;
 
-
-            // Animation frame update
-            if (currentTime - _birds[i].lastFrameChangeTime >= BIRD_FRAME_DURATION_MS) {
-                _birds[i].currentFrame = (_birds[i].currentFrame + 1) % BIRD_FRAME_COUNT;
-                _birds[i].lastFrameChangeTime = currentTime;
+            // Wavy movement logic
+            if (currentTime >= bird.nextWaveChangeTime) {
+                // Toggle target offset between +amplitude and -amplitude
+                if (bird.targetYOffset == 0.0f) {
+                    bird.targetYOffset = (random(0, 2) == 0) ? (float)BIRD_WAVE_AMPLITUDE : (float)-BIRD_WAVE_AMPLITUDE;
+                } else {
+                    bird.targetYOffset *= -1; // Reverse direction
+                }
+                bird.waveTransitionStartTime = currentTime;
+                bird.nextWaveChangeTime = currentTime + random(MIN_WAVE_INTERVAL_MS, MAX_WAVE_INTERVAL_MS + 1);
             }
 
-            // Deactivate if off-screen left
-            if (_birds[i].x < -BIRD_SPRITE_WIDTH - 5) { // Add a small buffer
-                _birds[i].active = false;
+            // Smooth transition to targetY using easing
+            float targetY = bird.baseY + bird.targetYOffset;
+            bird.currentY += (targetY - bird.currentY) * 0.05f;
+
+            // Wind affect on current Y position
+            bird.currentY += _currentWindFactor * 0.05f;
+            if (bird.currentY < 0) bird.currentY = 0;
+            if (bird.currentY > BIRD_SPAWN_Y_MAX + 2) bird.currentY = BIRD_SPAWN_Y_MAX + 2;
+
+            if (currentTime - bird.lastFrameChangeTime >= BIRD_FRAME_DURATION_MS) {
+                bird.currentFrame = (bird.currentFrame + 1) % BIRD_FRAME_COUNT;
+                bird.lastFrameChangeTime = currentTime;
             }
-        }
-    }
+
+            if (bird.x < -BIRD_SPRITE_WIDTH - 5) {
+                bird.active = false;
+            }
+        } });
 }
 
-void BirdManager::draw() {
-    if (!_isActive) {
+void BirdManager::draw()
+{
+    if (!_isActive)
+    {
         return;
     }
 
+    U8G2 *u8g2 = _renderer.getU8G2();
+    if (!u8g2 || !_birdBitmap)
+        return;
+
+    uint8_t originalDrawColor = u8g2->getDrawColor();
+
+    u8g2->setDrawColor(1);
+    u8g2->setBitmapMode(0);
+
+    std::for_each(std::begin(_birds), std::end(_birds), [&](const Bird &bird)
+                  {
+        if (bird.active) {
+            if (bird.isBig) {
+                drawScaledBird(bird, 1.5f);
+            } else {
+                int drawX_actual = static_cast<int>(round(bird.x));
+                int drawY_actual = static_cast<int>(round(bird.currentY));
+                
+                const unsigned char* currentFramePtr = _birdBitmap + (bird.currentFrame * BIRD_BYTES_PER_FRAME);
+                
+                _renderer.getU8G2()->drawXBMP(
+                    _renderer.getXOffset() + drawX_actual, 
+                    _renderer.getYOffset() + drawY_actual, 
+                    BIRD_SPRITE_WIDTH, 
+                    BIRD_SPRITE_HEIGHT, 
+                    currentFramePtr
+                );
+            }
+        } });
+
+    u8g2->setDrawColor(originalDrawColor);
+}
+
+void BirdManager::drawScaledBird(const Bird& bird, float scale) {
     U8G2* u8g2 = _renderer.getU8G2();
     if (!u8g2 || !_birdBitmap) return;
 
-    uint8_t originalDrawColor = u8g2->getDrawColor();
-    // uint8_t originalBitmapMode = u8g2->getBitmapMode(); // U8G2 does not have getBitmapMode
+    int scaledW = static_cast<int>(round(BIRD_SPRITE_WIDTH * scale));
+    int scaledH = static_cast<int>(round(BIRD_SPRITE_HEIGHT * scale));
+    if (scaledW <= 0 || scaledH <= 0) return;
 
-    u8g2->setDrawColor(1);   // Birds are drawn normally (not XOR)
-    u8g2->setBitmapMode(0);  // Transparent background for XBMP
+    int drawX = _renderer.getXOffset() + static_cast<int>(round(bird.x)) - (scaledW - BIRD_SPRITE_WIDTH) / 2;
+    int drawY = _renderer.getYOffset() + static_cast<int>(round(bird.currentY)) - (scaledH - BIRD_SPRITE_HEIGHT) / 2;
+    
+    const unsigned char* framePtr = _birdBitmap + (bird.currentFrame * BIRD_BYTES_PER_FRAME);
 
-    for (int i = 0; i < MAX_BIRDS; ++i) {
-        if (_birds[i].active) {
-            const Bird& bird = _birds[i];
-            int drawX_actual = static_cast<int>(round(bird.x));
-            int drawY_actual = static_cast<int>(round(bird.y));
+    for (int destY = 0; destY < scaledH; ++destY) {
+        for (int destX = 0; destX < scaledW; ++destX) {
+            int srcX = static_cast<int>(floor(static_cast<float>(destX) / scale));
+            int srcY = static_cast<int>(floor(static_cast<float>(destY) / scale));
 
-            // Get the correct frame from the spritesheet
-            // Sprites are stacked vertically
-            const unsigned char* currentFramePtr = _birdBitmap + (bird.currentFrame * BIRD_BYTES_PER_FRAME);
-            // Debug code for bitmap offset calculation
-            // if (i==0 && bird.currentFrame==1) debugPrintf("WEATHER", "Bird 0, Frame 1, Offset: %d", (int)(currentFramePtr - _birdBitmap));
-            
-            _renderer.getU8G2()->drawXBMP(
-                _renderer.getXOffset() + drawX_actual, 
-                _renderer.getYOffset() + drawY_actual, 
-                BIRD_SPRITE_WIDTH, 
-                BIRD_SPRITE_HEIGHT, 
-                currentFramePtr
-            );
+            if (srcX >= 0 && srcX < BIRD_SPRITE_WIDTH && srcY >= 0 && srcY < BIRD_SPRITE_HEIGHT) {
+                const unsigned char* bytePtr = framePtr + (srcY * ((BIRD_SPRITE_WIDTH + 7) / 8)) + (srcX / 8);
+                unsigned char byteVal = pgm_read_byte(bytePtr);
+                 if ((byteVal >> (srcX % 8)) & 0x01) {
+                    u8g2->drawPixel(drawX + destX, drawY + destY);
+                }
+            }
         }
     }
-    u8g2->setDrawColor(originalDrawColor);
-    // u8g2->setBitmapMode(originalBitmapMode); // Cannot restore, set to a known default if needed.
-                                             // For XBMP, 0 (transparent) is usually desired.
 }

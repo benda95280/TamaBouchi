@@ -2,7 +2,7 @@
 #include "InputManager.h"
 #include "BluetoothManager.h"
 #include "SerialForwarder.h"
-#include "espasyncbutton.hpp" // Keep this here, as this is the adapter for this library
+#include "espasyncbutton.hpp"
 #include "System/GameContext.h" 
 #include "GlobalMappings.h"
 #include <map>
@@ -43,6 +43,7 @@ void HardwareInputController::handleButtonEvent_static(void* handler_args, esp_e
         {VIRTUAL_BTN_LEFT, EDGE_Button::LEFT},
         {VIRTUAL_BTN_RIGHT, EDGE_Button::RIGHT}
     };
+    
     EventMsg* temp_msg = reinterpret_cast<EventMsg*>(event_data);
     debugPrintf("HARDWARE_INPUT","HIC::handleButtonEvent_static: Received Event! Base='%s', ID(EventType)=%d, GPIO(Pin)=%d\n",
                                base, (int)id, (int)temp_msg->gpio);

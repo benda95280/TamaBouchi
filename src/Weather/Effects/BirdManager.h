@@ -17,16 +17,24 @@ public:
     void init(unsigned long currentTime);
     void update(unsigned long currentTime);
     void draw(); // Drawing will be relative to renderer offsets
-    void setActive(bool active);
+    void setActive(bool active, const char* reason = "");
     void setWindFactor(float windFactor);
+    void spawnBirdsOnDemand(int count);
+    bool isActive() const { return _isActive; };
 
 private:
     struct Bird {
         bool active;
-        float x, y;
+        float x;
+        float baseY; // The central y-position for the wave
+        float currentY; // The current y-position including wave offset
+        float targetYOffset; // -2, 0, or 2
+        unsigned long waveTransitionStartTime;
+        unsigned long nextWaveChangeTime;
         float speedX;
         int currentFrame;
         unsigned long lastFrameChangeTime;
+        bool isBig;
     };
 
     Renderer& _renderer;
@@ -47,6 +55,7 @@ private:
     static const unsigned long BIRD_FRAME_DURATION_MS = 250; 
     static const size_t BIRD_BYTES_PER_FRAME = ((BIRD_SPRITE_WIDTH + 7) / 8 * BIRD_SPRITE_HEIGHT); // Recalculates to 1 * 3 = 3 bytes
 
+    // Spawning constants
     static const unsigned long MIN_BIRD_SPAWN_INTERVAL_MS = 30000; 
     static const unsigned long MAX_BIRD_SPAWN_INTERVAL_MS = 90000; 
     static const int MIN_BIRDS_TO_SPAWN = 1;
@@ -56,11 +65,17 @@ private:
     static constexpr float MIN_BIRD_SPEED_X_FACTOR = 0.8f;
     static constexpr float MAX_BIRD_SPEED_X_FACTOR = 1.2f;
 
+    // Wavy movement constants
+    static const int BIRD_WAVE_AMPLITUDE = 3; // +/- 3 pixels
+    static const unsigned long BIRD_WAVE_TRANSITION_DURATION_MS = 2000;
+    static const unsigned long MIN_WAVE_INTERVAL_MS = 2000;
+    static const unsigned long MAX_WAVE_INTERVAL_MS = 6000;
 
     const unsigned char* _birdBitmap = nullptr; 
 
     void spawnBirds(unsigned long currentTime);
     void resetBird(Bird& bird, bool initialSpawn = false);
+    void drawScaledBird(const Bird& bird, float scale);
 };
 
 #endif // BIRD_MANAGER_H

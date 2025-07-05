@@ -46,6 +46,7 @@ private:
     void handleDialogTemp(const String& args);
     void handleForceSleep(const String& args); 
     bool stringToPrequelStage(const String& s, PrequelStage& outStage); 
+    void handleSpawnBirds(const String& args);
 
     void listScenes();
     void setScene(const String& sceneNameOrIdStr); 

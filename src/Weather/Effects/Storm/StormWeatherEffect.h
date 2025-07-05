@@ -2,18 +2,13 @@
 #define STORM_WEATHER_EFFECT_H
 
 #include "../WeatherEffectBase.h"
-// #include "../Rainy/RainyWeatherEffect.h" // No longer directly needed if rain logic is self-contained or duplicated slightly
 #include "../../../Animator.h" 
 #include <vector>
 #include <memory>
-#include "../../../System/GameContext.h" // <<< NEW INCLUDE
-
-// Forward declarations
-// class Animator; // Already included
+#include "../../../System/GameContext.h"
 
 class StormWeatherEffect : public WeatherEffectBase {
 public:
-    // Constructor now takes GameContext
     StormWeatherEffect(GameContext& context); 
     ~StormWeatherEffect() override = default;
 
@@ -27,10 +22,6 @@ private:
     struct RainDrop { int x; int y; int speed; };
     static const int MAX_RAIN_DROPS_STORM = 30; 
     RainDrop _rainDrops[MAX_RAIN_DROPS_STORM];
-    
-    struct WindLine { int x1, y1, x2, y2; };
-    static const int MAX_WIND_LINES_STORM = 7; 
-    WindLine _windLines[MAX_WIND_LINES_STORM];
 
     struct LightningStrike {
         std::unique_ptr<Animator> animator;
@@ -54,10 +45,6 @@ private:
     void initRainDrops();
     void updateRainDrops();
     void drawRain();
-
-    void initWindLines();
-    void updateWindLines();
-    void drawWindLines();
 
     void triggerLightning(unsigned long currentTime);
     void updateLightningStrikes();

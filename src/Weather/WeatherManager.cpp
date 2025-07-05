@@ -15,6 +15,9 @@
 #include "Effects/HeavySnow/HeavySnowWeatherEffect.h"
 #include "Effects/Storm/StormWeatherEffect.h"
 #include "Effects/Rainbow/RainbowWeatherEffect.h"
+#include "Effects/Windy/WindyWeatherEffect.h"
+#include "Effects/Fog/FogWeatherEffect.h"
+#include "Effects/Aurora/AuroraWeatherEffect.h"
 #include "Effects/BirdManager.h" 
 #include "../System/GameContext.h"
 #include <map>
@@ -35,7 +38,6 @@ static const size_t weatherDefinitionCount = sizeof(weatherDefinitions) / sizeof
 
 WeatherManager::WeatherManager(GameContext& context) :
     _context(context),
-    _currentWeatherEffect(nullptr), 
     _birdManager(std::unique_ptr<BirdManager>(new BirdManager(*_context.renderer))), 
     _rainIntensityState(RainIntensityState::NONE),
     _actualWindFactor(0.0f),
@@ -53,38 +55,77 @@ WeatherManager::~WeatherManager() {
     debugPrint("WEATHER", "WeatherManager destructed.");
 }
 
-void WeatherManager::createWeatherEffect(WeatherType type) {
-    debugPrintf("WEATHER", "WeatherManager: Creating effect for type %d\n", (int)type);
-    switch (type) {
-        case WeatherType::SUNNY:       _currentWeatherEffect.reset(new SunnyWeatherEffect(_context)); break;
-        case WeatherType::CLOUDY:      _currentWeatherEffect.reset(new CloudyWeatherEffect(_context)); break;
-        case WeatherType::RAINY:       _currentWeatherEffect.reset(new RainyWeatherEffect(_context, false)); break;
-        case WeatherType::HEAVY_RAIN:  _currentWeatherEffect.reset(new HeavyRainWeatherEffect(_context)); break;
-        case WeatherType::SNOWY:       _currentWeatherEffect.reset(new SnowyWeatherEffect(_context, false)); break;
-        case WeatherType::HEAVY_SNOW:  _currentWeatherEffect.reset(new HeavySnowWeatherEffect(_context)); break;
-        case WeatherType::STORM:       _currentWeatherEffect.reset(new StormWeatherEffect(_context)); break;
-        case WeatherType::RAINBOW:     _currentWeatherEffect.reset(new RainbowWeatherEffect(_context)); break;
+void WeatherManager::updateWeatherComposition(WeatherType primaryType) {
+    _activeEffects.clear();
+    debugPrintf("WEATHER", "Updating weather composition. Primary: %d", (int)primaryType);
+
+    // Add primary weather effect
+    switch (primaryType) {
+        case WeatherType::SUNNY:       _activeEffects.emplace_back(new SunnyWeatherEffect(_context)); break;
+        case WeatherType::CLOUDY:      _activeEffects.emplace_back(new CloudyWeatherEffect(_context)); break;
+        case WeatherType::RAINY:       _activeEffects.emplace_back(new RainyWeatherEffect(_context, false)); break;
+        case WeatherType::HEAVY_RAIN:  _activeEffects.emplace_back(new HeavyRainWeatherEffect(_context)); break;
+        case WeatherType::SNOWY:       _activeEffects.emplace_back(new SnowyWeatherEffect(_context, false)); break;
+        case WeatherType::HEAVY_SNOW:  _activeEffects.emplace_back(new HeavySnowWeatherEffect(_context)); break;
+        case WeatherType::STORM:       _activeEffects.emplace_back(new StormWeatherEffect(_context)); break;
+        case WeatherType::RAINBOW:     _activeEffects.emplace_back(new RainbowWeatherEffect(_context)); break;
         case WeatherType::NONE:
-        default:                      _currentWeatherEffect.reset(new NoneWeatherEffect(_context)); break;
+        default:                      _activeEffects.emplace_back(new NoneWeatherEffect(_context)); break;
     }
-    if (_currentWeatherEffect) {
-        unsigned long currentTime = millis();
-        _currentWeatherEffect->init(currentTime);
-        _currentWeatherEffect->setWindFactor(_actualWindFactor);
-        _currentWeatherEffect->setIntensityState(_rainIntensityState);
-        _currentWeatherEffect->setParticleDensity(_currentParticleDensity);
-    } else {
-        debugPrintf("WEATHER", "WeatherManager: ERROR - Failed to create weather effect for type %d\n", (int)type);
+
+    // --- SECONDARY EFFECT LOGIC ---
+    bool hasWind = false;
+    if (primaryType == WeatherType::STORM) {
+        hasWind = true;
+    } else if (primaryType != WeatherType::RAINBOW && primaryType != WeatherType::SUNNY && primaryType != WeatherType::AURORA) {
+        if (random(100) < 35) {
+            hasWind = true;
+        }
+    }
+    if (hasWind) {
+        debugPrint("WEATHER", "Adding secondary WIND effect to composition.");
+        _activeEffects.emplace_back(new WindyWeatherEffect(_context));
+    }
+
+    if (primaryType == WeatherType::CLOUDY || primaryType == WeatherType::RAINY || primaryType == WeatherType::STORM) {
+        if (random(100) < 20) {
+            debugPrint("WEATHER", "Adding secondary FOG effect to composition.");
+            _activeEffects.emplace_back(new FogWeatherEffect(_context));
+        }
+    }
+
+    if (primaryType == WeatherType::NONE && std::abs(_actualWindFactor) < 0.6f) {
+        if (random(100) < 5) { // Very low chance
+             debugPrint("WEATHER", "Adding secondary AURORA effect to composition.");
+            _activeEffects.emplace_back(new AuroraWeatherEffect(_context));
+        }
+    }
+    // --- END SECONDARY EFFECT LOGIC ---
+
+
+    // Initialize all active effects
+    unsigned long currentTime = millis();
+    for(const auto& effect : _activeEffects) {
+        effect->init(currentTime);
+        effect->setWindFactor(_actualWindFactor);
+        effect->setIntensityState(_rainIntensityState);
+        effect->setParticleDensity(_currentParticleDensity);
     }
 
     if (_birdManager) {
-        bool birdsActive = false;
-        switch(type) {
-            case WeatherType::NONE: case WeatherType::CLOUDY: case WeatherType::RAINY: 
-            case WeatherType::SNOWY: case WeatherType::SUNNY: birdsActive = true; break;
-            default: birdsActive = false; break;
+        bool birdsActive = (primaryType != WeatherType::STORM && primaryType != WeatherType::HEAVY_RAIN && primaryType != WeatherType::HEAVY_SNOW) && (std::abs(_actualWindFactor) <= 0.9f);
+        if (!birdsActive) {
+            String reason;
+            if (primaryType == WeatherType::STORM || primaryType == WeatherType::HEAVY_RAIN || primaryType == WeatherType::HEAVY_SNOW) {
+                 reason += "Harsh weather; ";
+            }
+            if (std::abs(_actualWindFactor) > 0.9f) {
+                 reason += "Strong wind; ";
+            }
+            _birdManager->setActive(birdsActive, reason.c_str());
+        } else {
+            _birdManager->setActive(birdsActive);
         }
-        _birdManager->setActive(birdsActive);
     }
 }
 
@@ -100,7 +141,7 @@ void WeatherManager::init() {
 
     if (_birdManager) _birdManager->init(currentTime); 
 
-    if ((uint8_t)_context.gameStats->currentWeather >= weatherDefinitionCount ) {
+    if ((uint8_t)_context.gameStats->currentWeather >= (uint8_t)WeatherType::UNKNOWN ) { 
         _context.gameStats->currentWeather = WeatherType::NONE;
         _context.gameStats->nextWeatherChangeTime = 0;
     }
@@ -123,24 +164,24 @@ void WeatherManager::init() {
         _currentWeatherStartTime = _context.gameStats->nextWeatherChangeTime - estimatedTotalDuration;
         if (_currentWeatherStartTime > currentTime) _currentWeatherStartTime = currentTime;
 
-        updateParticleDensity(_context.gameStats->currentWeather);
+        updateParticleDensity(currentTime);
         updateWeatherState(currentTime); 
-        createWeatherEffect(_context.gameStats->currentWeather); 
+        updateWeatherComposition(_context.gameStats->currentWeather); 
         
         debugPrintf("WEATHER", "WeatherManager: Loaded weather %d, Est Start: %lu, End: %lu, Est Dur: %lu\n", (int)_context.gameStats->currentWeather, _currentWeatherStartTime, _context.gameStats->nextWeatherChangeTime, _currentWeatherDuration);
     }
 
      if (_context.gameStats->currentWeather == WeatherType::STORM) {
-         _actualWindFactor = (float)random(-15, 16) / 10.0f;
+         _actualWindFactor = (random(0,2) == 0 ? 1.0f : -1.0f) * ((float)random(10, 16) / 10.0f);
          _targetWindFactor = _actualWindFactor;
          _windChangeStartTime = currentTime;
-         if (_currentWeatherEffect) _currentWeatherEffect->setWindFactor(_actualWindFactor);
+         for(const auto& effect : _activeEffects) { effect->setWindFactor(_actualWindFactor); }
          if (_birdManager) _birdManager->setWindFactor(_actualWindFactor); 
          debugPrintf("WEATHER", "WeatherManager: Initial storm wind factor: %.1f\n", _actualWindFactor);
      } else {
          _actualWindFactor = 0.0f;
          _targetWindFactor = 0.0f;
-         if (_currentWeatherEffect) _currentWeatherEffect->setWindFactor(_actualWindFactor);
+         for(const auto& effect : _activeEffects) { effect->setWindFactor(_actualWindFactor); }
          if (_birdManager) _birdManager->setWindFactor(_actualWindFactor); 
      }
      debugPrintf("WEATHER", "WeatherManager Initialized. Current weather: %d, Next change at: %lu\n", (int)_context.gameStats->currentWeather, _context.gameStats->nextWeatherChangeTime);
@@ -155,16 +196,19 @@ void WeatherManager::update(unsigned long currentTime) {
 
     updateWeatherState(currentTime); 
     updateWind(currentTime);         
-    updateParticleDensity(_context.gameStats->currentWeather); 
+    updateParticleDensity(currentTime); 
 
-    if (_currentWeatherEffect) {
-        _currentWeatherEffect->setWindFactor(_actualWindFactor);
-        _currentWeatherEffect->setIntensityState(_rainIntensityState);
-        _currentWeatherEffect->setParticleDensity(_currentParticleDensity);
-        _currentWeatherEffect->update(currentTime);
+    for(const auto& effect : _activeEffects) {
+        effect->setWindFactor(_actualWindFactor);
+        effect->setIntensityState(_rainIntensityState);
+        effect->setParticleDensity(_currentParticleDensity);
+        effect->update(currentTime);
     }
     if (_birdManager) { 
         _birdManager->setWindFactor(_actualWindFactor);
+        if (std::abs(_actualWindFactor) > 0.9f) {
+            _birdManager->setActive(false, "Strong wind in update");
+        }
         _birdManager->update(currentTime);
     }
 }
@@ -172,16 +216,16 @@ void WeatherManager::update(unsigned long currentTime) {
 void WeatherManager::drawBackground(bool allowDrawing) {
     if (!allowDrawing || !_context.gameStats) return; 
     
-    if (_currentWeatherEffect) {
-        _currentWeatherEffect->drawBackground();
+    for(const auto& effect : _activeEffects) {
+        effect->drawBackground();
     }
 }
 
 void WeatherManager::drawForeground(bool allowDrawing) {
     if (!allowDrawing || !_context.gameStats) return; 
     
-    if (_currentWeatherEffect) {
-        _currentWeatherEffect->drawForeground();
+    for(const auto& effect : _activeEffects) {
+        effect->drawForeground();
     }
     if (_birdManager) { 
         _birdManager->draw();
@@ -200,21 +244,50 @@ uint8_t WeatherManager::getIntensityAdjustedDensity() const {
 void WeatherManager::updateWeatherState(unsigned long currentTime) {
     if (!_context.gameStats) return;
     WeatherType t = _context.gameStats->currentWeather;
-    if(t != WeatherType::RAINY && t != WeatherType::HEAVY_RAIN && t != WeatherType::STORM && t != WeatherType::SNOWY && t != WeatherType::HEAVY_SNOW) {
+    
+    if(t != WeatherType::RAINY && t != WeatherType::HEAVY_RAIN && t != WeatherType::STORM && t != WeatherType::SNOWY && t != WeatherType::HEAVY_SNOW && t != WeatherType::SUNNY) {
         _rainIntensityState = RainIntensityState::NONE;
+        _isFadingOut = false;
         return;
     }
     if (_currentWeatherDuration == 0) {
         _rainIntensityState = RainIntensityState::PEAK;
+        _isFadingOut = false;
         return;
     }
-    unsigned long e = currentTime - _currentWeatherStartTime;
-    unsigned long d3 = _currentWeatherDuration / 3;
-    RainIntensityState n;
-    if (e < d3) n = RainIntensityState::STARTING;
-    else if (e < d3 * 2) n = RainIntensityState::PEAK;
-    else n = RainIntensityState::ENDING;
-    if (_rainIntensityState != n) _rainIntensityState = n;
+
+    unsigned long timeUntilChange = _context.gameStats->nextWeatherChangeTime - currentTime;
+    RainIntensityState previousState = _rainIntensityState;
+    
+    if (timeUntilChange <= FADEOUT_DURATION_MS) {
+        _rainIntensityState = RainIntensityState::ENDING;
+    } else if (currentTime - _currentWeatherStartTime < FADEOUT_DURATION_MS) {
+        _rainIntensityState = RainIntensityState::STARTING;
+    } else {
+        _rainIntensityState = RainIntensityState::PEAK;
+    }
+
+    if (_rainIntensityState == RainIntensityState::ENDING && previousState != RainIntensityState::ENDING) {
+        _pendingNextWeatherType = peekNextWeatherType();
+        
+        bool currentHasParticles = (t == WeatherType::RAINY || t == WeatherType::HEAVY_RAIN || t == WeatherType::STORM || t == WeatherType::SNOWY || t == WeatherType::HEAVY_SNOW);
+        bool nextHasParticles = (_pendingNextWeatherType == WeatherType::RAINY || _pendingNextWeatherType == WeatherType::HEAVY_RAIN || _pendingNextWeatherType == WeatherType::STORM || _pendingNextWeatherType == WeatherType::SNOWY || _pendingNextWeatherType == WeatherType::HEAVY_SNOW);
+        
+        bool currentIsSunny = (t == WeatherType::SUNNY);
+        bool nextIsSunny = (_pendingNextWeatherType == WeatherType::SUNNY);
+
+        if ((currentHasParticles && !nextHasParticles) || (currentIsSunny && !nextIsSunny)) {
+            _isFadingOut = true;
+            for(const auto& effect : _activeEffects) {
+                effect->startFadeOut(FADEOUT_DURATION_MS);
+            }
+            debugPrintf("WEATHER", "Fade-out initiated for %s. Next weather: %s", weatherTypeToString(t), weatherTypeToString(_pendingNextWeatherType));
+        } else {
+            _isFadingOut = false;
+        }
+    } else if (_rainIntensityState != RainIntensityState::ENDING) {
+        _isFadingOut = false; 
+    }
 }
 
 void WeatherManager::updateWind(unsigned long currentTime) {
@@ -231,70 +304,103 @@ void WeatherManager::updateWind(unsigned long currentTime) {
         float progress = (float)timeSinceTransitionStart / (float)WIND_TRANSITION_DURATION_MS;
         progress = std::min(1.0f, std::max(0.0f, progress));
         
-        float prevActualWind = _actualWindFactor;
-        _actualWindFactor = (float)((double)prevActualWind + ((double)_targetWindFactor - (double)prevActualWind) * (double)progress * 0.1); 
+        float startWind = _actualWindFactor; // This logic might need adjustment if _actualWindFactor is constantly changing
+        _actualWindFactor = startWind + (_targetWindFactor - startWind) * progress;
 
         if (progress >= 1.0f) {
             _actualWindFactor = _targetWindFactor;
-            if (abs(prevActualWind - _targetWindFactor) >= 0.05f) debugPrintf("WEATHER", "Wind: Reached target %.1f", _targetWindFactor);
+            if (abs(startWind - _targetWindFactor) >= 0.05f) debugPrintf("WEATHER", "Wind: Reached target %.1f", _targetWindFactor);
         }
     }
 }
 
-void WeatherManager::updateParticleDensity(WeatherType type) {
-    if (type == WeatherType::RAINY) _currentParticleDensity = 40;
-    else if (type == WeatherType::HEAVY_RAIN || type == WeatherType::STORM) _currentParticleDensity = 80;
-    else if (type == WeatherType::SNOWY) _currentParticleDensity = 30;
-    else if (type == WeatherType::HEAVY_SNOW) _currentParticleDensity = 60;
-    else _currentParticleDensity = 0;
+void WeatherManager::updateParticleDensity(unsigned long currentTime) {
+    WeatherType t = _context.gameStats->currentWeather;
+
+    if (_isFadingOut) {
+        long timeUntilEnd = _context.gameStats->nextWeatherChangeTime - currentTime;
+        timeUntilEnd = std::max(0L, timeUntilEnd);
+        float fadeProgress = 1.0f - ((float)timeUntilEnd / (float)FADEOUT_DURATION_MS);
+        fadeProgress = std::min(1.0f, std::max(0.0f, fadeProgress));
+
+        uint8_t baseDensity = 0;
+        if (t == WeatherType::RAINY) baseDensity = 40;
+        else if (t == WeatherType::HEAVY_RAIN || t == WeatherType::STORM) baseDensity = 80;
+        else if (t == WeatherType::SNOWY) baseDensity = 30;
+        else if (t == WeatherType::HEAVY_SNOW) baseDensity = 60;
+        
+        _currentParticleDensity = static_cast<uint8_t>(round((float)baseDensity * (1.0f - fadeProgress)));
+    } else {
+        if (t == WeatherType::RAINY) _currentParticleDensity = 40;
+        else if (t == WeatherType::HEAVY_RAIN || t == WeatherType::STORM) _currentParticleDensity = 80;
+        else if (t == WeatherType::SNOWY) _currentParticleDensity = 30;
+        else if (t == WeatherType::HEAVY_SNOW) _currentParticleDensity = 60;
+        else _currentParticleDensity = 0;
+    }
 }
 
 void WeatherManager::selectNextWeather(unsigned long currentTime) {
     if (!_context.gameStats) return;
     WeatherType previousWeather = _context.gameStats->currentWeather;
-    uint16_t totalChance = 0;
-    for (size_t i = 0; i < weatherDefinitionCount; ++i) totalChance += weatherDefinitions[i].chance;
-    if (totalChance == 0) { 
-        _context.gameStats->setWeather(WeatherType::NONE, currentTime + 5 * 60000); 
-        createWeatherEffect(WeatherType::NONE); return; 
-    }
-
-    uint16_t randomPick = random(0, totalChance);
-    WeatherType selectedType = WeatherType::NONE;
-    for (size_t i = 0; i < weatherDefinitionCount; ++i) {
-        if (randomPick < weatherDefinitions[i].chance) {
-            selectedType = weatherDefinitions[i].type;
-            if ((previousWeather == WeatherType::STORM && selectedType == WeatherType::RAINBOW) ||
-                (previousWeather == WeatherType::RAINBOW && selectedType == WeatherType::STORM)) {
-                selectedType = WeatherType::RAINY; 
-                debugPrint("WEATHER", "WeatherManager: Transition Storm/Rainbow -> RAINY");
-            } else if ((previousWeather == WeatherType::RAINY || previousWeather == WeatherType::HEAVY_RAIN) && selectedType == WeatherType::SUNNY) {
-                if (random(100) < 15) { 
-                    selectedType = WeatherType::RAINBOW;
-                    debugPrint("WEATHER", "WeatherManager: Transition Rain -> RAINBOW (post-rain chance)");
-                }
-            }
-            break;
+    
+    _pendingNextWeatherType = peekNextWeatherType();
+    
+    if ((previousWeather == WeatherType::STORM && _pendingNextWeatherType == WeatherType::RAINBOW) ||
+        (previousWeather == WeatherType::RAINBOW && _pendingNextWeatherType == WeatherType::STORM)) {
+        _pendingNextWeatherType = WeatherType::RAINY; 
+        debugPrint("WEATHER", "WeatherManager: Transition Storm/Rainbow -> RAINY");
+    } else if ((previousWeather == WeatherType::RAINY || previousWeather == WeatherType::HEAVY_RAIN) && _pendingNextWeatherType == WeatherType::SUNNY) {
+        if (random(100) < 15) { 
+            _pendingNextWeatherType = WeatherType::RAINBOW;
+            debugPrint("WEATHER", "WeatherManager: Transition Rain -> RAINBOW (post-rain chance)");
         }
-        randomPick -= weatherDefinitions[i].chance;
     }
-
+    
     unsigned long minDur = 5 * 60000, maxDur = 15 * 60000;
     for (size_t i = 0; i < weatherDefinitionCount; ++i) {
-        if (weatherDefinitions[i].type == selectedType) {
+        if (weatherDefinitions[i].type == _pendingNextWeatherType) {
             minDur = weatherDefinitions[i].minDurationMs; maxDur = weatherDefinitions[i].maxDurationMs; break;
         }
     }
     unsigned long duration = random(minDur, maxDur + 1);
     unsigned long nextChange = currentTime + duration;
-    _context.gameStats->setWeather(selectedType, nextChange);
+    _context.gameStats->setWeather(_pendingNextWeatherType, nextChange);
     _currentWeatherStartTime = currentTime;
     _currentWeatherDuration = duration;
 
-    createWeatherEffect(selectedType); 
+    _windChangeStartTime = currentTime;
+    if (_pendingNextWeatherType == WeatherType::STORM) {
+        _targetWindFactor = (random(0,2) == 0 ? -1.0f : 1.0f) * ((float)random(10, 18) / 10.0f);
+        if (std::abs(_targetWindFactor) < 1.0f) {
+            _targetWindFactor = (_targetWindFactor > 0) ? 1.0f : -1.0f;
+        }
+    } else if (previousWeather == WeatherType::STORM) {
+        _targetWindFactor = 0.0f;
+    } else {
+        _targetWindFactor = (float)random(-8, 9) / 10.0f;
+    }
+    debugPrintf("WEATHER", "Wind target set to %.2f on weather change.", _targetWindFactor);
 
-    debugPrintf("WEATHER", "WeatherManager: Weather changed to %s (%d). Duration: %lu ms. Next change at: %lu\n", weatherTypeToString(selectedType), (int)selectedType, duration, nextChange);
+    updateWeatherComposition(_pendingNextWeatherType); 
+
+    debugPrintf("WEATHER", "WeatherManager: Weather changed to %s (%d). Duration: %lu ms. Next change at: %lu\n", weatherTypeToString(_pendingNextWeatherType), (int)_pendingNextWeatherType, duration, nextChange);
 }
+
+WeatherType WeatherManager::peekNextWeatherType() const {
+    uint16_t totalChance = 0;
+    for (size_t i = 0; i < weatherDefinitionCount; ++i) totalChance += weatherDefinitions[i].chance;
+    if (totalChance == 0) return WeatherType::NONE;
+
+    uint16_t randomPick = random(0, totalChance);
+    for (size_t i = 0; i < weatherDefinitionCount; ++i) {
+        if (randomPick < weatherDefinitions[i].chance) {
+            return weatherDefinitions[i].type;
+        }
+        randomPick -= weatherDefinitions[i].chance;
+    }
+    return WeatherType::NONE; // Fallback
+}
+
 
 void WeatherManager::forceWeather(WeatherType type, unsigned long durationMs) {
     if (!_context.gameStats) return;
@@ -304,9 +410,81 @@ void WeatherManager::forceWeather(WeatherType type, unsigned long durationMs) {
     _currentWeatherStartTime = currentTime;
     _currentWeatherDuration = durationMs;
     
-    createWeatherEffect(type); 
+    updateWeatherComposition(type); 
 
     debugPrintf("WEATHER", "WeatherManager: Weather FORCED to %s (%d). Duration: %lu ms. Next change at: %lu\n", weatherTypeToString(type), (int)type, durationMs, nextChange);
+}
+
+void WeatherManager::forceWind(float windFactor) {
+    _targetWindFactor = windFactor;
+    _windChangeStartTime = millis();
+    _nextWindTargetTime = _windChangeStartTime + WIND_TRANSITION_DURATION_MS; 
+    debugPrintf("WEATHER", "Wind manually forced to %.2f", windFactor);
+}
+
+void WeatherManager::forceAddSecondaryEffect(const String& effectName) {
+    WeatherType effectTypeToAdd;
+    if (effectName.equalsIgnoreCase("fog")) effectTypeToAdd = WeatherType::FOG;
+    else if (effectName.equalsIgnoreCase("aurora")) effectTypeToAdd = WeatherType::AURORA;
+    else if (effectName.equalsIgnoreCase("windy")) effectTypeToAdd = WeatherType::WINDY;
+    else {
+        debugPrintf("WEATHER", "Unknown effect to add: %s", effectName.c_str());
+        return;
+    }
+    
+    bool alreadyExists = false;
+    for (const auto& effect : _activeEffects) {
+        if (effect->getType() == effectTypeToAdd) {
+            alreadyExists = true;
+            break;
+        }
+    }
+
+    if (alreadyExists) {
+        debugPrintf("WEATHER", "Effect %s already active.", effectName.c_str());
+        return;
+    }
+
+    std::unique_ptr<WeatherEffectBase> newEffect;
+    switch (effectTypeToAdd) {
+        case WeatherType::FOG:    newEffect.reset(new FogWeatherEffect(_context)); break;
+        case WeatherType::AURORA: newEffect.reset(new AuroraWeatherEffect(_context)); break;
+        case WeatherType::WINDY:  newEffect.reset(new WindyWeatherEffect(_context)); break;
+        default: break;
+    }
+    
+    if (newEffect) {
+        debugPrintf("WEATHER", "Forcing add of secondary effect: %s", effectName.c_str());
+        newEffect->init(millis());
+        newEffect->setWindFactor(_actualWindFactor);
+        newEffect->setIntensityState(_rainIntensityState);
+        newEffect->setParticleDensity(_currentParticleDensity);
+        _activeEffects.push_back(std::move(newEffect));
+    }
+}
+
+void WeatherManager::forceSpawnBirds(int count) {
+    if (_birdManager) {
+        _birdManager->spawnBirdsOnDemand(count);
+    } else {
+        debugPrint("WEATHER", "Cannot force spawn birds, BirdManager is null.");
+    }
+}
+
+
+String WeatherManager::getActiveEffectsString() const {
+    if (_activeEffects.empty()) {
+        return "None";
+    }
+
+    String effectsList;
+    for (size_t i = 0; i < _activeEffects.size(); ++i) {
+        if (i > 0) {
+            effectsList += ", ";
+        }
+        effectsList += weatherTypeToString(_activeEffects[i]->getType());
+    }
+    return effectsList;
 }
 
 const char* WeatherManager::weatherTypeToString(WeatherType type) {
@@ -315,7 +493,9 @@ const char* WeatherManager::weatherTypeToString(WeatherType type) {
         {WeatherType::CLOUDY, StringKey::WEATHER_CLOUDY}, {WeatherType::RAINY, StringKey::WEATHER_RAINY},
         {WeatherType::HEAVY_RAIN, StringKey::WEATHER_HEAVY_RAIN}, {WeatherType::SNOWY, StringKey::WEATHER_SNOWY},
         {WeatherType::HEAVY_SNOW, StringKey::WEATHER_HEAVY_SNOW}, {WeatherType::STORM, StringKey::WEATHER_STORM},
-        {WeatherType::RAINBOW, StringKey::WEATHER_RAINBOW}
+        {WeatherType::RAINBOW, StringKey::WEATHER_RAINBOW}, {WeatherType::WINDY, StringKey::WEATHER_WINDY},
+        {WeatherType::FOG, StringKey::WEATHER_FOG}, {WeatherType::AURORA, StringKey::WEATHER_AURORA},
+        {WeatherType::UNKNOWN, StringKey::WEATHER_UNKNOWN}
     };
     auto it = weatherMap.find(type);
     if (it != weatherMap.end()) {
