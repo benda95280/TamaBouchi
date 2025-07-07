@@ -23,8 +23,8 @@ TamaBouchi is more than just a simple virtual pet. It's a feature-rich experienc
 
 <p align="center">
   <!-- It's highly recommended to replace this with a GIF of your gameplay! -->
-  <img src="GAMEPLAY_GIF" alt="TamaBouchi Gameplay Demo (WIP)" width="300"/>
-  <br/>
+  <img src="Images/Demo/tamabouchi_booting.gif" alt="TamaBouchi Gameplay Demo (WIP)"/>
+  </br><sup><sub>As date of 08/07/2025</sub></sup></br>
   <em>A peek at the TamaBouchi world!</em>
 </p>
 
@@ -33,7 +33,7 @@ TamaBouchi is more than just a simple virtual pet. It's a feature-rich experienc
 *   📜 **Story Mode:** An engaging prequel and tutorial sequence to introduce you to the world.
 *   🕹️ **Action Menu:** Interact with your pet: Feed, Clean, Heal, Play, and tuck it into Sleep.
 *   👾 **Flappy Tuck Mini-Game:** Jump in and play a fun mini-game to boost happiness!
-*   🌦️ **Dynamic Weather System:** The world changes with Sunny, Cloudy, Rainy, Stormy, Snowy, and even Rainbow conditions.
+*   🌦️ **Dynamic Weather System:** The world changes with Sunny, Cloudy, Rainy, Stormy, Snowy, and even Rainbow conditions. Wind is drawn and affect snow/rain/... + Fog + Aurora </br><p align="center"><img src="Images/Demo/tamabouchi_weather_clouds.gif"/> <img src="Images/Demo/tamabouchi_weather_fog.gif"/> <img src="Images/Demo/tamabouchi_weather_snow.gif"/> <img src="Images/Demo/tamabouchi_weather_storm.gif"/> <img src="Images/Demo/tamabouchi_weather_sunny.gif"/> <img src="Images/Demo/tamabouchi_weather_winds.gif"/></p>
 *   🌍 **Living World:** Features like a particle system, screen effects (shake, fade), and animated background elements bring the world to life.
 
 ### Engine & System (EDGE)
