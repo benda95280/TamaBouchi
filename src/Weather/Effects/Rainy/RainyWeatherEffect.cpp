@@ -12,19 +12,35 @@ RainyWeatherEffect::RainyWeatherEffect(GameContext& context, bool isHeavy)
     if (_context.serialForwarder) _context.serialForwarder->printf("%sWeatherEffect created\n", _isHeavyRain ? "HeavyRain" : "Rainy");
 }
 
+RainyWeatherEffect::~RainyWeatherEffect() {
+    debugPrintf("WEATHER", "%sWeatherEffect destroyed, freeing buffers.", _isHeavyRain ? "HeavyRain" : "Rainy");
+    if (_rainDrops != nullptr) {
+        delete[] _rainDrops;
+        _rainDrops = nullptr;
+    }
+}
+
 void RainyWeatherEffect::init(unsigned long currentTime) {
+    if (_rainDrops == nullptr) {
+        _rainDrops = new (std::nothrow) RainDrop[MAX_RAIN_DROPS];
+        if (_rainDrops == nullptr) {
+            debugPrint("WEATHER", "FATAL: Failed to allocate memory for rain drops!");
+            return;
+        }
+        debugPrintf("WEATHER", "%sWeatherEffect: Allocated buffers.", _isHeavyRain ? "HeavyRain" : "Rainy");
+    }
     initRainDrops();
     if (_context.serialForwarder) _context.serialForwarder->printf("%sWeatherEffect init\n", _isHeavyRain ? "HeavyRain" : "Rainy");
 }
 
 void RainyWeatherEffect::initRainDrops() {
-    if (!_context.renderer) return;
+    if (!_context.renderer || !_rainDrops) return;
     int screenW = _context.renderer->getWidth();
     int screenH = _context.renderer->getHeight();
 
-    std::for_each(std::begin(_rainDrops), std::end(_rainDrops), [&](RainDrop& drop){
-        drop = { (int)random(0, screenW), (int)random(-screenH, -5), (int)random(1, _isHeavyRain ? 5 : 4) };
-    });
+    for(int i = 0; i < MAX_RAIN_DROPS; ++i) {
+        _rainDrops[i] = { (int)random(0, screenW), (int)random(-screenH, -5), (int)random(1, _isHeavyRain ? 5 : 4) };
+    }
 
     if (_context.serialForwarder) _context.serialForwarder->println("Raindrops initialized/re-initialized.");
 }
@@ -34,7 +50,7 @@ void RainyWeatherEffect::update(unsigned long currentTime) {
 }
 
 void RainyWeatherEffect::updateRainDrops() {
-    if (!_context.renderer) return;
+    if (!_context.renderer || !_rainDrops) return;
     int screenW = _context.renderer->getWidth();
     int screenH = _context.renderer->getHeight();
     uint8_t speed_factor = _isHeavyRain ? 2 : 1;
@@ -42,7 +58,8 @@ void RainyWeatherEffect::updateRainDrops() {
     uint8_t drops_to_update = (MAX_RAIN_DROPS * current_density) / 100;
     drops_to_update = std::min((int)MAX_RAIN_DROPS, (int)drops_to_update);
 
-    std::for_each(std::begin(_rainDrops), std::begin(_rainDrops) + drops_to_update, [&](RainDrop& drop){
+    for (int i = 0; i < drops_to_update; ++i) {
+        RainDrop& drop = _rainDrops[i];
         int current_speed = std::abs(drop.speed);
         if (current_speed == 0) current_speed = 1;
         drop.y += current_speed * speed_factor;
@@ -53,7 +70,7 @@ void RainyWeatherEffect::updateRainDrops() {
             drop.y = -(int)random(5, 21);
             drop.speed = (int)random(1, _isHeavyRain ? 5 : 4);
         }
-    });
+    }
 }
 
 void RainyWeatherEffect::drawBackground() { }
@@ -64,7 +81,7 @@ void RainyWeatherEffect::drawForeground() {
 }
 
 void RainyWeatherEffect::drawRain(uint8_t speed_factor) {
-    if (!_context.renderer || !_context.display) return;
+    if (!_context.renderer || !_context.display || !_rainDrops) return;
     U8G2* u8g2 = _context.display;
     Renderer& renderer = *_context.renderer;
 
@@ -77,26 +94,23 @@ void RainyWeatherEffect::drawRain(uint8_t speed_factor) {
     uint8_t originalColor = u8g2->getDrawColor();
     u8g2->setDrawColor(2); 
 
-    std::for_each(std::begin(_rainDrops), std::begin(_rainDrops) + drops_to_draw, [&](const RainDrop& drop){
+    for (int i = 0; i < drops_to_draw; ++i) {
+        const RainDrop& drop = _rainDrops[i];
         int x_local = drop.x; 
         int y1_local = drop.y; 
         int y2_local = y1_local + (_isHeavyRain ? 3 : 2); 
 
-        // Simplified check: if the drop is horizontally outside the screen, skip it.
-        // If the drop is vertically completely above or below the screen, skip it.
         if (x_local < 0 || x_local >= screenW || y2_local < 0 || y1_local >= screenH) {
-            return; // Skip this drop
+            continue;
         }
         
-        // Explicitly clip the y-coordinates to be within the logical screen boundaries.
         int draw_y1 = std::max(0, y1_local);
         int draw_y2 = std::min(screenH - 1, y2_local);
         
-        // Ensure the line has a positive length after clipping before drawing.
         if (draw_y1 <= draw_y2) {
              renderer.drawLine(x_local, draw_y1, x_local, draw_y2);
         }
-    });
+    }
     u8g2->setDrawColor(originalColor);
 }
 

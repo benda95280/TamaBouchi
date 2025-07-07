@@ -111,3 +111,6 @@ The project relies on several third-party libraries, and their original licenses
 | **ESPAsyncWebServer & AsyncTCP** | Hristo Gochkov | `LGPL-3.0` |
 | **PrettyOTA** | Tomoyuki Furusawa | `MIT` |
 | **ESPAsyncButton** | Ardestan | `MIT` |
+| **gifenc** | Matt DesLauriers | `MIT` |
+
+

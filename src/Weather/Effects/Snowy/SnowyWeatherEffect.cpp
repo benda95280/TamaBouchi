@@ -20,7 +20,23 @@ SnowyWeatherEffect::SnowyWeatherEffect(GameContext& context, bool isHeavy)
     }
 }
 
+SnowyWeatherEffect::~SnowyWeatherEffect() {
+    debugPrintf("WEATHER", "%sWeatherEffect destroyed, freeing buffers.", _isHeavySnow ? "HeavySnow" : "Snowy");
+    if (_snowFlakes != nullptr) {
+        delete[] _snowFlakes;
+        _snowFlakes = nullptr;
+    }
+}
+
 void SnowyWeatherEffect::init(unsigned long currentTime) {
+    if (_snowFlakes == nullptr) {
+        _snowFlakes = new (std::nothrow) SnowFlake[MAX_SNOW_FLAKES];
+        if (_snowFlakes == nullptr) {
+            debugPrint("WEATHER", "FATAL: Failed to allocate memory for snow flakes!");
+            return;
+        }
+        debugPrintf("WEATHER", "%sWeatherEffect: Allocated buffers.", _isHeavySnow ? "HeavySnow" : "Snowy");
+    }
     initSnowFlakes();
     if (_context.serialForwarder) {
         _context.serialForwarder->printf("%sWeatherEffect init\n", _isHeavySnow ? "HeavySnow" : "Snowy");
@@ -28,7 +44,7 @@ void SnowyWeatherEffect::init(unsigned long currentTime) {
 }
 
 void SnowyWeatherEffect::initSnowFlakes() {
-    if (!_context.renderer) return;
+    if (!_context.renderer || !_snowFlakes) return;
     int screenW = _context.renderer->getWidth();
     int screenH = _context.renderer->getHeight();
     unsigned long currentTime = millis();
@@ -54,7 +70,7 @@ void SnowyWeatherEffect::update(unsigned long currentTime) {
 }
 
 void SnowyWeatherEffect::updateSnowFlakes(unsigned long currentTime) {
-    if (!_context.renderer) return;
+    if (!_context.renderer || !_snowFlakes) return;
     int screenW = _context.renderer->getWidth();
     int screenH = _context.renderer->getHeight();
     uint8_t speed_factor = _isHeavySnow ? 2 : 1;
@@ -62,7 +78,8 @@ void SnowyWeatherEffect::updateSnowFlakes(unsigned long currentTime) {
     uint8_t flakes_to_update = (MAX_SNOW_FLAKES * current_density) / 100;
     flakes_to_update = std::min((int)MAX_SNOW_FLAKES, (int)flakes_to_update);
 
-    std::for_each(std::begin(_snowFlakes), std::begin(_snowFlakes) + flakes_to_update, [&](SnowFlake& flake){
+    for (int i = 0; i < flakes_to_update; ++i) {
+        SnowFlake& flake = _snowFlakes[i];
         flake.y += flake.speedY * speed_factor;
         flake.x += (_currentWindFactor * flake.speedXFactor * speed_factor * 1.2f); 
 
@@ -88,7 +105,7 @@ void SnowyWeatherEffect::updateSnowFlakes(unsigned long currentTime) {
         } else if (flake.x > screenW + 5) {
             flake.x = -4;
         }
-    });
+    }
 }
 
 void SnowyWeatherEffect::drawBackground() { }
@@ -98,7 +115,7 @@ void SnowyWeatherEffect::drawForeground() {
 }
 
 void SnowyWeatherEffect::drawSnow() {
-    if (!_context.renderer || !_context.display) return;
+    if (!_context.renderer || !_context.display || !_snowFlakes) return;
     U8G2* u8g2 = _context.display;
     Renderer& renderer = *_context.renderer;
 
@@ -110,7 +127,8 @@ void SnowyWeatherEffect::drawSnow() {
     uint8_t originalColor = u8g2->getDrawColor();
     u8g2->setDrawColor(1); 
 
-    std::for_each(std::begin(_snowFlakes), std::begin(_snowFlakes) + flakes_to_draw, [&](const SnowFlake& flake) {
+    for (int i = 0; i < flakes_to_draw; ++i) {
+        const SnowFlake& flake = _snowFlakes[i];
         int x_local = static_cast<int>(round(flake.x));
         int y_local = static_cast<int>(round(flake.y));
 
@@ -137,7 +155,7 @@ void SnowyWeatherEffect::drawSnow() {
             // Draw directly with u8g2, applying the renderer's offsets manually
             u8g2->drawStr(renderer.getXOffset() + x_local, renderer.getYOffset() + y_local, str);
         }
-    });
+    }
 
     if (_context.defaultFont) {
          u8g2->setFont(_context.defaultFont);

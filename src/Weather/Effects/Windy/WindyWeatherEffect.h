@@ -6,7 +6,7 @@
 class WindyWeatherEffect : public WeatherEffectBase {
 public:
     WindyWeatherEffect(GameContext& context);
-    ~WindyWeatherEffect() override = default;
+    ~WindyWeatherEffect() override;
 
     void init(unsigned long currentTime) override;
     void update(unsigned long currentTime) override;
@@ -17,7 +17,7 @@ public:
 private:
     struct WindLine { int x1, y1, x2, y2; };
     static const int MAX_WIND_LINES = 10;
-    WindLine _windLines[MAX_WIND_LINES];
+    WindLine* _windLines = nullptr; // MODIFIED: Changed from static array to pointer
 
     void initWindLines();
     void updateWindLines();

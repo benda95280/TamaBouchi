@@ -1,4 +1,3 @@
-// --- START OF FILE src/DialogBox/DialogBox.h ---
 #ifndef DIALOG_BOX_H
 #define DIALOG_BOX_H
 #include <Arduino.h>
@@ -9,6 +8,8 @@ class DialogBox
 {
 public:
     DialogBox(Renderer &renderer);
+    ~DialogBox(); // Add destructor to free memory
+
     // Set the content and activate the dialog (permanent)
     // Clears previous content. Use addText for multi-line.
     void show(const char *initialMessage = "");
@@ -47,11 +48,12 @@ public:
     bool isAtTop() const; // Added for completeness
 private:
     Renderer &_renderer;
-    // --- MODIFIED: From std::vector<String> to fixed char arrays ---
+    // --- MODIFIED: From fixed char arrays to a dynamically allocated buffer ---
     static const int MAX_DIALOG_LINES = 15;
     static const int MAX_LINE_LENGTH = 40; // Includes null terminator
-    char _lineBuffers[MAX_DIALOG_LINES][MAX_LINE_LENGTH];
+    char* _lineBuffers = nullptr; // Pointer for dynamic allocation
     int _numActiveLines = 0;
+    int _lineCapacity = 0; // To track if buffer is allocated
     // --- END MODIFIED ---
 
     int _topLineIndex = 0;
@@ -104,7 +106,10 @@ private:
     void drawTemporaryDots();
     void processAndAddLine(const String &textLine); // Still takes String for ease of splitting, internal storage is char[]
     void _setInitialContent(const char *text);
-    void drawFormattedLine(const char *lineStr, int yPos, int clipRightX); // Modified to take const char*
+    void drawFormattedLine(const char *lineStr, int yPos, int clipRightX);
+
+    // --- NEW: Dynamic buffer management ---
+    void allocateLineBuffers();
+    void deallocateLineBuffers();
 };
 #endif // DIALOG_BOX_H
-// --- END OF FILE src/DialogBox/DialogBox.h ---

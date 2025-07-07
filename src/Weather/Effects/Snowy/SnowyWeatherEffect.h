@@ -6,7 +6,7 @@
 class SnowyWeatherEffect : public WeatherEffectBase {
 public:
     SnowyWeatherEffect(GameContext& context, bool isHeavy); 
-    ~SnowyWeatherEffect() override = default;
+    ~SnowyWeatherEffect() override;
 
     void init(unsigned long currentTime) override;
     void update(unsigned long currentTime) override;
@@ -29,7 +29,7 @@ private:
     };
     
     static const int MAX_SNOW_FLAKES = 40;
-    SnowFlake _snowFlakes[MAX_SNOW_FLAKES];
+    SnowFlake* _snowFlakes = nullptr; // MODIFIED: Changed from static array to pointer
     bool _isHeavySnow;
     const uint8_t* _snowFont = nullptr;
     const uint8_t* _largeSnowFont = nullptr;

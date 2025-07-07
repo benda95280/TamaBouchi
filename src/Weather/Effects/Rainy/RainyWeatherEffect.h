@@ -8,7 +8,7 @@ class RainyWeatherEffect : public WeatherEffectBase {
 public:
     // Constructor now takes GameContext
     RainyWeatherEffect(GameContext& context, bool isHeavy); 
-    ~RainyWeatherEffect() override = default;
+    ~RainyWeatherEffect() override;
 
     void init(unsigned long currentTime) override;
     void update(unsigned long currentTime) override;
@@ -19,7 +19,7 @@ public:
 private:
     struct RainDrop { int x; int y; int speed; };
     static const int MAX_RAIN_DROPS = 30; 
-    RainDrop _rainDrops[MAX_RAIN_DROPS];
+    RainDrop* _rainDrops = nullptr; // MODIFIED: Changed from static array to pointer
     bool _isHeavyRain;
     
     void initRainDrops();

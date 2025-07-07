@@ -293,10 +293,6 @@ void setup()
     );
     u8g2->begin();
 
-
-    screenStreamer_ptr = new ScreenStreamer(u8g2, server_ptr, true);
-    screenStreamer_ptr->init();
-
     gameContext.display = u8g2;
     gameContext.defaultFont = u8g2_font_5x7_tf;
 
@@ -307,12 +303,14 @@ void setup()
     };
     engine = new EDGE(u8g2, displayConf, engineLogger);
 
-    // ******************* CRASH FIX ******************* //
     // Populate the game context with pointers from the engine
     gameContext.renderer = &engine->getRenderer();
     gameContext.sceneManager = &engine->getSceneManager();
     gameContext.inputManager = &engine->getInputManager();
-    // *********************************************** //
+
+    // ScreenStreamer is initialized after Renderer is available in the context
+    screenStreamer_ptr = new ScreenStreamer(u8g2, server_ptr, true, true, false, 8);
+    screenStreamer_ptr->init();
 
 
     debugPrint("SYSTEM", "Initializing character manager...");

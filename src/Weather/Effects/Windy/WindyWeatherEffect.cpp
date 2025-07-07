@@ -12,7 +12,23 @@ WindyWeatherEffect::WindyWeatherEffect(GameContext& context)
     if (_context.serialForwarder) _context.serialForwarder->println("WindyWeatherEffect created");
 }
 
+WindyWeatherEffect::~WindyWeatherEffect() {
+    debugPrint("WEATHER", "WindyWeatherEffect destroyed, freeing buffers.");
+    if (_windLines != nullptr) {
+        delete[] _windLines;
+        _windLines = nullptr;
+    }
+}
+
 void WindyWeatherEffect::init(unsigned long currentTime) {
+    if (_windLines == nullptr) {
+        _windLines = new (std::nothrow) WindLine[MAX_WIND_LINES];
+        if (_windLines == nullptr) {
+            debugPrint("WEATHER", "FATAL: Failed to allocate memory for wind lines!");
+            return;
+        }
+        debugPrint("WEATHER", "WindyWeatherEffect: Allocated buffers.");
+    }
     initWindLines();
     if (_context.serialForwarder) _context.serialForwarder->println("WindyWeatherEffect init");
 }
@@ -22,7 +38,7 @@ void WindyWeatherEffect::update(unsigned long currentTime) {
 }
 
 void WindyWeatherEffect::initWindLines() {
-    if (!_context.renderer) return;
+    if (!_context.renderer || !_windLines) return;
     int screenW = _context.renderer->getWidth();
     int screenH = _context.renderer->getHeight();
     for (int i = 0; i < MAX_WIND_LINES; ++i) {
@@ -36,7 +52,7 @@ void WindyWeatherEffect::initWindLines() {
 }
 
 void WindyWeatherEffect::updateWindLines() {
-    if (!_context.renderer) return;
+    if (!_context.renderer || !_windLines) return;
     int screenW = _context.renderer->getWidth();
     int screenH = _context.renderer->getHeight();
     for (int i = 0; i < MAX_WIND_LINES; ++i) {
@@ -74,7 +90,7 @@ void WindyWeatherEffect::updateWindLines() {
 }
 
 void WindyWeatherEffect::drawWindLines() {
-    if (!_context.renderer) return;
+    if (!_context.renderer || !_windLines) return;
     Renderer& renderer = *_context.renderer;
 
     const int INSIDE = 0; // 0000

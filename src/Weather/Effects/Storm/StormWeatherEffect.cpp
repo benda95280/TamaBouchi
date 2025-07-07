@@ -3,15 +3,14 @@
 #include <U8g2lib.h>
 #include <algorithm>
 #include <cmath>
-#include "../../../System/GameContext.h"
+#include "../../../System/GameContext.h" // Ensure GameContext is known for _context usage
 #include "../../../DebugUtils.h"
 #include "SerialForwarder.h"
-#include "Renderer.h"
 
 
-StormWeatherEffect::StormWeatherEffect(GameContext &context)
+StormWeatherEffect::StormWeatherEffect(GameContext &context) // Takes GameContext
     : WeatherEffectBase(context)
-{ 
+{ // Pass context to base
     _activeStrikes.reserve(MAX_SIMULTANEOUS_STRIKES);
     if (_context.serialForwarder)
         _context.serialForwarder->println("StormWeatherEffect created");
@@ -20,6 +19,7 @@ StormWeatherEffect::StormWeatherEffect(GameContext &context)
 void StormWeatherEffect::init(unsigned long currentTime)
 {
     initRainDrops();
+    initWindLines();
     _activeStrikes.clear();
     _lastStrikeTriggerTime = currentTime;
     _strikeCountLast10s = 0;
@@ -35,6 +35,7 @@ void StormWeatherEffect::init(unsigned long currentTime)
 void StormWeatherEffect::update(unsigned long currentTime)
 {
     updateRainDrops();
+    updateWindLines();
     updateLightningStrikes();
 
     if (currentTime - _last10sBoundary >= 10000)
@@ -123,16 +124,101 @@ void StormWeatherEffect::drawRain()
         int x_local = _rainDrops[i].x;
         int y1_local = _rainDrops[i].y;
         int y2_local = y1_local + 3;
-        
-        if (x_local < 0 || x_local >= screenW || y2_local < 0 || y1_local >= screenH) {
-            continue; 
+        if (x_local >= 0 && x_local < screenW &&
+            ((y1_local >= 0 && y1_local < screenH) || (y2_local >= 0 && y2_local < screenH) || (y1_local < 0 && y2_local >= screenH)))
+        {
+            int draw_y1 = std::max(0, std::min(screenH - 1, y1_local));
+            int draw_y2 = std::max(0, std::min(screenH - 1, y2_local));
+            if (draw_y1 <= draw_y2)
+                renderer.drawLine(x_local, draw_y1, x_local, draw_y2);
         }
+    }
+}
 
-        int draw_y1 = std::max(0, y1_local);
-        int draw_y2 = std::min(screenH - 1, y2_local);
+void StormWeatherEffect::initWindLines()
+{
+    if (!_context.renderer)
+        return;
+    int screenW = _context.renderer->getWidth();
+    int screenH = _context.renderer->getHeight();
+    for (int i = 0; i < MAX_WIND_LINES_STORM; ++i)
+    {
+        int dx = (int)random(8, 20);
+        int dy = (int)random(-3, 4);
+        _windLines[i].x1 = (int)random(0, screenW);
+        _windLines[i].y1 = (int)random(0, screenH);
+        _windLines[i].x2 = _windLines[i].x1 - dx;
+        _windLines[i].y2 = _windLines[i].y1 + dy;
+    }
+}
 
-        if (draw_y1 <= draw_y2) {
-            renderer.drawLine(x_local, draw_y1, x_local, draw_y2);
+void StormWeatherEffect::updateWindLines()
+{
+    if (!_context.renderer)
+        return;
+    int screenW = _context.renderer->getWidth();
+    int screenH = _context.renderer->getHeight();
+    for (int i = 0; i < MAX_WIND_LINES_STORM; ++i)
+    {
+        float baseSpeed = 4.5f;
+        float windEffectSpeed = baseSpeed + std::abs(_currentWindFactor) * 2.5f;
+        int dy = static_cast<int>(round(_currentWindFactor * 1.2f));
+        dy = std::max(-3, std::min(3, dy));
+        int dx_magnitude = static_cast<int>(round(windEffectSpeed));
+        dx_magnitude = std::max(3, std::min(10, dx_magnitude));
+        int dx = static_cast<int>(_currentWindFactor * (float)dx_magnitude * 0.9f);
+        dx = std::max(-dx_magnitude, std::min(dx_magnitude, dx));
+        if (dx == 0 && _currentWindFactor != 0.0f)
+            dx = (_currentWindFactor < 0) ? -1 : 1;
+
+        _windLines[i].x1 += dx;
+        _windLines[i].x2 += dx;
+        _windLines[i].y1 += dy;
+        _windLines[i].y2 += dy;
+
+        bool outOfBounds = (_windLines[i].x1 < -35 && _windLines[i].x2 < -35) ||
+                           (_windLines[i].x1 > screenW + 35 && _windLines[i].x2 > screenW + 35) ||
+                           (_windLines[i].y1 < -35 && _windLines[i].y2 < -35) ||
+                           (_windLines[i].y1 > screenH + 35 && _windLines[i].y2 > screenH + 35);
+        if (outOfBounds)
+        {
+            if (_currentWindFactor > 0.1f)
+                _windLines[i].x1 = -random(5, 20);
+            else if (_currentWindFactor < -0.1f)
+                _windLines[i].x1 = screenW + random(5, 20);
+            else
+                _windLines[i].x1 = random(0, screenW);
+            _windLines[i].y1 = random(0, screenH);
+            int len_dx = random(12, 25);
+            int len_dy = random(-3, 4);
+            _windLines[i].x2 = (_currentWindFactor > 0.1f) ? (_windLines[i].x1 + len_dx) : (_windLines[i].x1 - len_dx);
+            _windLines[i].y2 = _windLines[i].y1 + len_dy;
+        }
+    }
+}
+
+void StormWeatherEffect::drawWindLines()
+{
+    if (!_context.renderer)
+        return;
+    Renderer &renderer = *_context.renderer;
+    int screenW = renderer.getWidth();
+    int screenH = renderer.getHeight();
+    for (int i = 0; i < MAX_WIND_LINES_STORM; ++i)
+    {
+        int x1_abs = renderer.getXOffset() + _windLines[i].x1;
+        int y1_abs = renderer.getYOffset() + _windLines[i].y1;
+        int x2_abs = renderer.getXOffset() + _windLines[i].x2;
+        int y2_abs = renderer.getYOffset() + _windLines[i].y2;
+
+        bool isLineOnScreen = !((x1_abs < renderer.getXOffset() && x2_abs < renderer.getXOffset()) ||
+                                (x1_abs >= renderer.getXOffset() + screenW && x2_abs >= renderer.getXOffset() + screenW) ||
+                                (y1_abs < renderer.getYOffset() && y2_abs < renderer.getYOffset()) ||
+                                (y1_abs >= renderer.getYOffset() + screenH && y2_abs >= renderer.getYOffset() + screenH));
+        if (isLineOnScreen)
+        {
+            // Use local coordinates for renderer.drawLine
+            renderer.drawLine(_windLines[i].x1, _windLines[i].y1, _windLines[i].x2, _windLines[i].y2);
         }
     }
 }
@@ -284,6 +370,7 @@ void StormWeatherEffect::drawForeground()
 
     u8g2->setDrawColor(2);
     drawRain();
+    drawWindLines();
 
     if (fullscreenStrikeActive)
         u8g2->setDrawColor(2);

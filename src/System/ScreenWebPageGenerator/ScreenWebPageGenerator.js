@@ -52,8 +52,8 @@ function addLineBreaks(buffer) {
 `
 // SPDX-License-Identifier: GPL-3.0-or-later
 #pragma once
-const uint32_t WEBSERIAL_HTML_SIZE = ${GZIPPED_INDEX.length};
-const uint8_t WEBSERIAL_HTML[] PROGMEM = { 
+const uint32_t SCREENVIEWER_HTML_SIZE = ${GZIPPED_INDEX.length};
+const uint8_t SCREENVIEWER_HTML[] PROGMEM = { 
 ${ addLineBreaks(GZIPPED_INDEX) }
 };
 `;

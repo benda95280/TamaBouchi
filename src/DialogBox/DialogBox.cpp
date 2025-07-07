@@ -1,4 +1,3 @@
-// --- START OF FILE src/DialogBox/DialogBox.cpp ---
 #include "DialogBox.h"
 #include <algorithm>         // For std::max, std::min
 #include <vector>            // Include vector for word splitting
@@ -61,6 +60,43 @@ DialogBox::DialogBox(Renderer &renderer) : _renderer(renderer)
 {
     calculateLayout();
 }
+DialogBox::~DialogBox()
+{
+    deallocateLineBuffers();
+}
+
+// --- NEW: Dynamic Buffer Management ---
+void DialogBox::allocateLineBuffers()
+{
+    if (_lineBuffers != nullptr)
+    {
+        // Already allocated, just reset the line count
+        _numActiveLines = 0;
+        return;
+    }
+    debugPrint("DIALOG_BOX", "Allocating line buffers (600 bytes).");
+    _lineBuffers = new (std::nothrow) char[MAX_DIALOG_LINES * MAX_LINE_LENGTH];
+    if (_lineBuffers == nullptr) {
+        debugPrint("DIALOG_BOX", "FATAL: Failed to allocate memory for DialogBox line buffers!");
+        _lineCapacity = 0;
+        return;
+    }
+    _lineCapacity = MAX_DIALOG_LINES;
+    _numActiveLines = 0;
+}
+void DialogBox::deallocateLineBuffers()
+{
+    if (_lineBuffers != nullptr)
+    {
+        debugPrint("DIALOG_BOX", "Deallocating line buffers.");
+        delete[] _lineBuffers;
+        _lineBuffers = nullptr;
+    }
+    _lineCapacity = 0;
+    _numActiveLines = 0;
+}
+// --- END NEW ---
+
 void DialogBox::calculateLayout()
 {
     U8G2 *u8g2 = _renderer.getU8G2();
@@ -96,7 +132,6 @@ void DialogBox::calculateLayout()
 }
 void DialogBox::updateScrollability()
 {
-    // --- MODIFIED to use _numActiveLines ---
     if (!_active || _numActiveLines <= _visibleLines)
     {
         _canScrollUp = false;
@@ -107,29 +142,33 @@ void DialogBox::updateScrollability()
         _canScrollUp = (_topLineIndex > 0);
         _canScrollDown = (_topLineIndex < _numActiveLines - _visibleLines);
     }
-    // --- END MODIFIED ---
 }
 void DialogBox::_setInitialContent(const char *text)
 {
-    // --- MODIFIED to use _lineBuffers and _numActiveLines ---
-    _numActiveLines = 0; // Clear existing lines
+    // Buffers are now allocated on demand, but this logic stays mostly the same
+    _numActiveLines = 0; 
+    if (!_lineBuffers) { // Should have been allocated by show()
+        debugPrint("DIALOG_BOX", "Error: _setInitialContent called before buffers were allocated!");
+        return;
+    }
+
     if (!text || text[0] == '\0')
     {
-        if (_numActiveLines < MAX_DIALOG_LINES)
-        {                                            // Ensure space for one empty line
-            _lineBuffers[_numActiveLines][0] = '\0'; // Store an empty string
+        if (_numActiveLines < _lineCapacity)
+        {                                           
+            _lineBuffers[_numActiveLines * MAX_LINE_LENGTH] = '\0'; // Store an empty string
             _numActiveLines++;
         }
         updateScrollability();
         return;
     }
-    String inputText = text; // Use String for convenience of splitting
+    String inputText = text; 
     std::vector<String> inputLines;
     splitStringByNewline(inputText, inputLines);
 
     for (const String &line : inputLines)
     {
-        if (_numActiveLines >= MAX_DIALOG_LINES)
+        if (_numActiveLines >= _lineCapacity)
         {
             debugPrint("DIALOG_BOX", "Warning: MAX_DIALOG_LINES reached in _setInitialContent. Truncating.");
             break;
@@ -138,7 +177,6 @@ void DialogBox::_setInitialContent(const char *text)
     }
     _topLineIndex = 0;
     updateScrollability();
-    // --- END MODIFIED ---
 }
 void DialogBox::show(const char *initialMessage)
 {
@@ -147,6 +185,9 @@ void DialogBox::show(const char *initialMessage)
         debugPrint("DIALOG_BOX", "show called while already active. Ignoring.");
         return;
     }
+    
+    allocateLineBuffers(); // MODIFIED: Allocate memory on show
+    if (_lineCapacity == 0) return; // Allocation failed
 
     debugPrint("DIALOG_BOX", "Showing permanent message.");
     _isTemporary = false;
@@ -163,6 +204,9 @@ void DialogBox::showTemporary(const char *message, unsigned long durationMs)
         return;
     }
 
+    allocateLineBuffers(); // MODIFIED: Allocate memory on show
+    if (_lineCapacity == 0) return; // Allocation failed
+
     debugPrintf("DIALOG_BOX", "Showing temporary message for %lu ms", durationMs);
     _isTemporary = true;
     _active = true;
@@ -172,7 +216,6 @@ void DialogBox::showTemporary(const char *message, unsigned long durationMs)
     _lastDotUpdateTime = millis();
     calculateLayout();
 
-    // --- MODIFIED to use _numActiveLines ---
     if (_numActiveLines > _visibleLines && _canScrollDown)
     {
         _isAutoScrolling = true;
@@ -203,25 +246,22 @@ void DialogBox::showTemporary(const char *message, unsigned long durationMs)
         _isAutoScrolling = false;
         _dynamicScrollIntervalMs = 1500;
     }
-    // --- END MODIFIED ---
 }
 void DialogBox::processAndAddLine(const String &textLine)
 {
     U8G2 *u8g2 = _renderer.getU8G2();
-    if (!u8g2)
+    if (!u8g2 || !_lineBuffers)
     {
-        // --- MODIFIED: Fallback to store directly if u8g2 missing, but still check bounds ---
-        if (_numActiveLines < MAX_DIALOG_LINES)
+        if (_numActiveLines < _lineCapacity)
         {
-            strncpy(_lineBuffers[_numActiveLines], textLine.c_str(), MAX_LINE_LENGTH - 1);
-            _lineBuffers[_numActiveLines][MAX_LINE_LENGTH - 1] = '\0';
+            strncpy(&_lineBuffers[_numActiveLines * MAX_LINE_LENGTH], textLine.c_str(), MAX_LINE_LENGTH - 1);
+            _lineBuffers[(_numActiveLines * MAX_LINE_LENGTH) + MAX_LINE_LENGTH - 1] = '\0';
             _numActiveLines++;
         }
         else
         {
-            debugPrint("DIALOG_BOX", "Warning: MAX_DIALOG_LINES reached in processAndAddLine (no u8g2). Truncating.");
+            debugPrint("DIALOG_BOX", "Warning: MAX_DIALOG_LINES reached in processAndAddLine (no u8g2/buffer). Truncating.");
         }
-        // --- END MODIFIED ---
         return;
     }
 
@@ -229,34 +269,30 @@ void DialogBox::processAndAddLine(const String &textLine)
     int maxTextWidth = _boxW - (3 * _padding) - _scrollbarWidth - 2;
     if (maxTextWidth <= 0)
     {
-        // --- MODIFIED: Store directly if no space, check bounds ---
-        if (_numActiveLines < MAX_DIALOG_LINES)
+        if (_numActiveLines < _lineCapacity)
         {
-            strncpy(_lineBuffers[_numActiveLines], textLine.c_str(), MAX_LINE_LENGTH - 1);
-            _lineBuffers[_numActiveLines][MAX_LINE_LENGTH - 1] = '\0';
+            strncpy(&_lineBuffers[_numActiveLines * MAX_LINE_LENGTH], textLine.c_str(), MAX_LINE_LENGTH - 1);
+            _lineBuffers[(_numActiveLines * MAX_LINE_LENGTH) + MAX_LINE_LENGTH - 1] = '\0';
             _numActiveLines++;
         }
         else
         {
             debugPrint("DIALOG_BOX", "Warning: MAX_DIALOG_LINES reached in processAndAddLine (no text width). Truncating.");
         }
-        // --- END MODIFIED ---
         return;
     }
 
     if (textLine.isEmpty())
     {
-        // --- MODIFIED: Store empty line, check bounds ---
-        if (_numActiveLines < MAX_DIALOG_LINES)
+        if (_numActiveLines < _lineCapacity)
         {
-            _lineBuffers[_numActiveLines][0] = '\0';
+            _lineBuffers[_numActiveLines * MAX_LINE_LENGTH] = '\0';
             _numActiveLines++;
         }
         else
         {
             debugPrint("DIALOG_BOX", "Warning: MAX_DIALOG_LINES reached while adding empty line. Truncating.");
         }
-        // --- END MODIFIED ---
         return;
     }
 
@@ -265,8 +301,8 @@ void DialogBox::processAndAddLine(const String &textLine)
 
     while (remainingText.length() > 0)
     {
-        if (_numActiveLines >= MAX_DIALOG_LINES)
-        { // Check before processing next wrapped segment
+        if (_numActiveLines >= _lineCapacity)
+        { 
             debugPrint("DIALOG_BOX", "Warning: MAX_DIALOG_LINES reached during line wrapping. Truncating.");
             break;
         }
@@ -312,17 +348,17 @@ void DialogBox::processAndAddLine(const String &textLine)
             remainingText = remainingText.substring(wrapAt);
             remainingText.trim();
         }
-        // --- MODIFIED: Store wrapped line into _lineBuffers ---
-        strncpy(_lineBuffers[_numActiveLines], currentWrappedLine.c_str(), MAX_LINE_LENGTH - 1);
-        _lineBuffers[_numActiveLines][MAX_LINE_LENGTH - 1] = '\0';
+        // MODIFIED: Use new buffer access method
+        char* currentLinePtr = &_lineBuffers[_numActiveLines * MAX_LINE_LENGTH];
+        strncpy(currentLinePtr, currentWrappedLine.c_str(), MAX_LINE_LENGTH - 1);
+        currentLinePtr[MAX_LINE_LENGTH - 1] = '\0';
         _numActiveLines++;
-        // --- END MODIFIED ---
         currentWrappedLine = "";
     }
 }
 DialogBox &DialogBox::addText(const char *text)
 {
-    if (!text)
+    if (!text || !_lineBuffers)
         return *this;
     if (_isTemporary)
     {
@@ -331,27 +367,25 @@ DialogBox &DialogBox::addText(const char *text)
         _isAutoScrolling = false;
     }
 
-    String inputText = text; // Use String for convenience of splitting
+    String inputText = text; 
     std::vector<String> inputLines;
     splitStringByNewline(inputText, inputLines);
 
     for (const String &line : inputLines)
     {
-        if (_numActiveLines >= MAX_DIALOG_LINES)
-        { // Check before processing next line
+        if (_numActiveLines >= _lineCapacity)
+        { 
             debugPrint("DIALOG_BOX", "Warning: MAX_DIALOG_LINES reached in addText. Truncating.");
             break;
         }
         processAndAddLine(line);
     }
-    // --- MODIFIED: Update scrollability based on _numActiveLines ---
     _topLineIndex = std::max(0, std::min(_topLineIndex, _numActiveLines - _visibleLines));
     updateScrollability();
     if (!_isTemporary)
     {
         _isAutoScrolling = false;
     }
-    // --- END MODIFIED ---
     return *this;
 }
 void DialogBox::update(unsigned long currentTime)
@@ -388,11 +422,9 @@ void DialogBox::update(unsigned long currentTime)
             if (currentTime - _lastAutoScrollTime >= _dynamicScrollIntervalMs)
             {
                 _topLineIndex++;
-                // --- MODIFIED: Update scrollability based on _numActiveLines ---
                 int maxTopIndex = (_numActiveLines > _visibleLines) ? (_numActiveLines - _visibleLines) : 0;
                 _topLineIndex = std::min(std::max(0, maxTopIndex), _topLineIndex);
                 updateScrollability();
-                // --- END MODIFIED ---
 
                 _lastAutoScrollTime = currentTime;
                 debugPrintf("DIALOG_BOX", "Auto-scrolled. New top: %d", _topLineIndex);
@@ -430,9 +462,7 @@ void DialogBox::drawScrollbar()
 
     if (_canScrollUp || _canScrollDown)
     {
-        // --- MODIFIED: Use _numActiveLines ---
         int totalLines = _numActiveLines;
-        // --- END MODIFIED ---
         int scrollRange = totalLines - _visibleLines;
         if (scrollRange <= 0)
             return;
@@ -532,7 +562,6 @@ void DialogBox::drawTemporaryDots()
     u8g2->setFontPosTop();
     u8g2->drawStr(dotsX, dotsY, dots);
 }
-// --- MODIFIED: drawFormattedLine now takes const char* ---
 void DialogBox::drawFormattedLine(const char *lineStr, int yPos, int clipRightX)
 {
     U8G2 *u8g2 = _renderer.getU8G2();
@@ -615,10 +644,9 @@ void DialogBox::drawFormattedLine(const char *lineStr, int yPos, int clipRightX)
     }
     u8g2->setMaxClipWindow(); // Reset clip window
 }
-// --- END MODIFIED ---
 void DialogBox::draw()
 {
-    if (!_active)
+    if (!_active || !_lineBuffers)
         return;
     U8G2 *u8g2 = _renderer.getU8G2();
     if (!u8g2)
@@ -637,21 +665,19 @@ void DialogBox::draw()
     u8g2->setFontPosTop();
 
     int currentY = _textY;
-    // --- MODIFIED: Use _numActiveLines ---
     int linesToDraw = std::min(_numActiveLines - _topLineIndex, _visibleLines);
-    // --- END MODIFIED ---
     int textClipRight = _scrollbarX - _padding;
 
     for (int i = 0; i < linesToDraw; ++i)
     {
         int lineIndex = _topLineIndex + i;
-        // --- MODIFIED: Use _lineBuffers ---
         if (lineIndex >= 0 && lineIndex < _numActiveLines)
         {
-            drawFormattedLine(_lineBuffers[lineIndex], currentY, textClipRight);
+            // MODIFIED: Use new buffer access method
+            const char* currentLinePtr = &_lineBuffers[lineIndex * MAX_LINE_LENGTH];
+            drawFormattedLine(currentLinePtr, currentY, textClipRight);
             currentY += _lineHeight;
         }
-        // --- END MODIFIED ---
     }
 
     drawScrollbar();
@@ -672,12 +698,11 @@ void DialogBox::close()
     _active = false;
     _isTemporary = false;
     _isAutoScrolling = false;
-    // --- MODIFIED: Clear lines ---
-    _numActiveLines = 0;
-    // --- END MODIFIED ---
     _topLineIndex = 0;
     updateScrollability();
     _lastAutoScrollTime = 0;
+    
+    deallocateLineBuffers(); // MODIFIED: Free memory on close
 }
 void DialogBox::scrollUp(int lines)
 {
@@ -699,10 +724,8 @@ void DialogBox::scrollDown(int lines)
         return;
     debugPrint("DIALOG_BOX", "Scrolling Down (manual or programmatic).");
     _topLineIndex += lines;
-    // --- MODIFIED: Update scrollability based on _numActiveLines ---
     int maxTopIndex = (_numActiveLines > _visibleLines) ? (_numActiveLines - _visibleLines) : 0;
     _topLineIndex = std::min(std::max(0, maxTopIndex), _topLineIndex);
-    // --- END MODIFIED ---
     updateScrollability();
     if (_isTemporary && _isAutoScrolling)
     {
@@ -712,4 +735,3 @@ void DialogBox::scrollDown(int lines)
 }
 bool DialogBox::isAtBottom() const { return !_canScrollDown; }
 bool DialogBox::isAtTop() const { return !_canScrollUp; }
-// --- END OF FILE src/DialogBox/DialogBox.cpp ---
