@@ -29,7 +29,7 @@ TamaBouchi is more than just a simple virtual pet. It's a feature-rich experienc
 </p>
 
 ### Game & World
-*   🥚 **Life Cycle:** Watch your pet hatch and grow, keeping track of stats like health, happiness, and hunger. </br><p align="center"><img src="Images/Demo/tamabouchi_weather_clouds.gif"/> <img src="Images/Demo/tamabouchi_sleeping.gif"/> <img src="Images/Demo/tamabouchi_weather_snow.gif"/> <img src="Images/Demo/tamabouchi_weather_storm.gif"/> <img src="Images/Demo/tamabouchi_weather_sunny.gif"/></p>
+*   🥚 **Life Cycle:** Watch your pet hatch and grow, keeping track of stats like health, happiness, and hunger. </br><p align="center"> <img src="Images/Demo/tamabouchi-sleeping.gif"/></p>
 *   📜 **Story Mode:** An engaging prequel and tutorial sequence to introduce you to the world.
 *   🕹️ **Action Menu:** Interact with your pet: Feed, Clean, Heal, Play, and tuck it into Sleep.
 *   👾 **Flappy Tuck Mini-Game:** Jump in and play a fun mini-game to boost happiness!
