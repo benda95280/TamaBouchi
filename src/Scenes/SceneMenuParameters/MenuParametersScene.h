@@ -19,8 +19,6 @@ public:
     MenuParametersScene();
     ~MenuParametersScene() override;
 
-    SceneType getSceneType() const override { return SceneType::PARAMS; } 
-
     // This is a scene-specific init, not an override of the base class.
     void init(GameContext &context);
     void onEnter() override;

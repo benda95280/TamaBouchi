@@ -86,7 +86,7 @@ void MainScene::init(GameContext& context)
 void MainScene::onEnter()
 {
     debugPrint("SCENES", "MainScene::onEnter");
-    if (!_gameContext || !_gameContext->gameStats || !_gameContext->characterManager || !_gameContext->renderer) {
+    if (!_gameContext || !_gameContext->gameStats || !_gameContext->characterManager || !_gameContext->renderer || !_gameContext->sceneManager) {
         debugPrint("SCENES", "ERROR: MainScene::onEnter - Critical context member is null!");
         return;
     }
@@ -140,9 +140,14 @@ void MainScene::onEnter()
     float offScreenTopY = static_cast<float>(renderer.getYOffset() - MENU_BAR_HEIGHT - 1);
     float offScreenBottomY = static_cast<float>(renderer.getYOffset() + renderer.getHeight() + 1);
 
-    if (_isFirstEntry)
+    String previousScene = _gameContext->sceneManager->getPreviousSceneName();
+    bool fromSleep = (previousScene == "SLEEPING");
+    
+    debugPrintf("SCENES", "MainScene: Entering from scene '%s'. Is it from sleep? %s", previousScene, fromSleep ? "Yes" : "No");
+
+    if (_isFirstEntry && !fromSleep)
     {
-        debugPrint("SCENES", "MainScene: First entry, starting entry animation.");
+        debugPrint("SCENES", "MainScene: Playing entry animation.");
         _isFirstEntry = false;
         currentPhase = AnimationPhase::PHASE_FALLING;
         showMenus = false;
@@ -172,9 +177,9 @@ void MainScene::onEnter()
             scheduleNextIdleAnimation(millis());
         }
     }
-    else
+    else // This is the case for coming from sleep
     {
-        debugPrint("SCENES", "MainScene: Subsequent entry, skipping entry animation.");
+        debugPrint("SCENES", "MainScene: Waking from sleep, skipping entry animation.");
         currentPhase = AnimationPhase::PHASE_IDLE;
         scheduleNextIdleAnimation(millis());
         if (staticOk)

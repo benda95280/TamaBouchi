@@ -17,8 +17,6 @@ public:
     _0LanguageSelectScene();
     ~_0LanguageSelectScene() override;
 
-    SceneType getSceneType() const override { return SceneType::LANGUAGE_SELECT_PREQUEL; }
-
     // This is a scene-specific init method, not an override of the base class.
     void init(GameContext& context); 
     void onEnter() override;

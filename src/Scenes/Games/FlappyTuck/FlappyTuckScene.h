@@ -30,8 +30,6 @@ public:
     void update(unsigned long deltaTime) override;
     void draw(Renderer& renderer) override;
 
-    SceneType getSceneType() const override { return SceneType::FLAPPY_GAME; }
-
     void onGamePausedByFatigue() override;
     void onGameResumedFromFatiguePause() override;
 

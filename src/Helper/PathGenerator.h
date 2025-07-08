@@ -1,4 +1,3 @@
-// --- START OF FILE Helper/PathGenerator.h ---
 #ifndef PATH_GENERATOR_H
 #define PATH_GENERATOR_H
 
@@ -60,4 +59,3 @@ private:
 };
 
 #endif // PATH_GENERATOR_H
-// --- END OF FILE Helper/PathGenerator.h ---

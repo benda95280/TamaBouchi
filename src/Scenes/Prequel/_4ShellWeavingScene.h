@@ -35,8 +35,6 @@ public:
     _4ShellWeavingScene();
     ~_4ShellWeavingScene() override;
 
-    SceneType getSceneType() const override { return SceneType::PREQUEL_STAGE_4; }
-
     // This is a scene-specific init method, not an override of the base class.
     void init(GameContext &context); 
     void onEnter() override;

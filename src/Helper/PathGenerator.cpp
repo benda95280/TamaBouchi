@@ -1,4 +1,3 @@
-// --- START OF FILE Helper/PathGenerator.cpp ---
 #include "PathGenerator.h"
 #include <cmath>     // For trig, sqrt, abs, round, fmod
 #include <algorithm> // For std::min/max
@@ -207,4 +206,3 @@ bool PathGenerator::generateFlyingPath(std::vector<PathPoint>& outPath,
 
     return outPath.size() >= 3; // Need at least start, middle, end
 }
-// --- END OF FILE Helper/PathGenerator.cpp ---

@@ -252,8 +252,9 @@ void SerialCommandHandler::processSerialCommand(String command) {
     else if (command.startsWith("anim_")) {
          if (!_context.sceneManager) { _context.serialForwarder->println("Error: SceneManager (via context) not available."); } 
          else { 
-             Scene* currentScene = _context.sceneManager->getCurrentScene(); 
-             if (currentScene && currentScene->getSceneType() == SceneType::MAIN) { 
+             Scene* currentScene = _context.sceneManager->getCurrentScene();
+             String currentSceneName = _context.sceneManager->getCurrentSceneName(); 
+             if (currentScene && currentSceneName == "MAIN") { 
                  MainScene* mainScene = static_cast<MainScene*>(currentScene); 
                  bool success = false; 
                  if (command.equalsIgnoreCase("anim_snooze")) { success = mainScene->triggerSnoozeAnimation(); } 
@@ -418,12 +419,11 @@ void SerialCommandHandler::printSystemInfo() {
     
     if (_context.sceneManager) {
         Scene* currentScene = _context.sceneManager->getCurrentScene();
-        String currentSceneNameStr = _context.sceneManager->getCurrentSceneName(); // Renamed local var
+        String currentSceneNameStr = _context.sceneManager->getCurrentSceneName();
         if (currentScene) {
-             _context.serialForwarder->printf("Current Scene: %s (Type: %d)\n",
-                           currentSceneNameStr.c_str(),
-                           (int)currentScene->getSceneType());
-        } else {
+             _context.serialForwarder->printf("Current Scene: %s\n",
+                           currentSceneNameStr.c_str());
+       } else {
             _context.serialForwarder->println("Current Scene: None (SceneManager active but no scene set)");
         }
     } else {

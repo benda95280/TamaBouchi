@@ -20,6 +20,20 @@ void GameStats::updateGlobalLanguage() {
     extern Language currentLanguage; currentLanguage = selectedLanguage;
 }
 
+void GameStats::checkAndApplyConsequences() {
+    if (!isSleeping && fatigue >= 100) {
+        setIsSleeping(true);
+        debugPrint("GAME_STATS", "Consequence: Fatigue reached 100, auto-sleeping character!");
+    }
+    
+    if (isSleeping && fatigue == 0) {
+        setIsSleeping(false); 
+        debugPrint("GAME_STATS", "Consequence: Fatigue reached 0, auto-waking character!");
+    }
+    // Future consequences can be added here, e.g.:
+    // if (health == 0) { handleDeath(); }
+}
+
 void GameStats::load() { 
     Preferences prefs; 
     if (prefs.begin(PREF_STATS_NAMESPACE, true)) { 
@@ -193,17 +207,57 @@ void GameStats::deepSleepWakeUp(int minutesSleptOriginal) {
 }
 
 void GameStats::addPoints(uint32_t amount) { if (amount == 0) return; points += amount; updateAgeBasedOnPoints(); }
-void GameStats::setHealth(uint8_t value) { health = std::min((uint8_t)100, std::max((uint8_t)0, value)); }
-void GameStats::setHappiness(uint8_t value) { happiness = std::min((uint8_t)100, std::max((uint8_t)0, value)); }
-void GameStats::setDirty(uint8_t value) { dirty = std::min((uint8_t)100, std::max((uint8_t)0, value)); }
-void GameStats::setFatigue(uint8_t value) { fatigue = std::min((uint8_t)100, std::max((uint8_t)0, value)); }
-void GameStats::setHunger(uint8_t value) { hunger = std::min((uint8_t)100, std::max((uint8_t)0, value)); }
-void GameStats::setSickness(Sickness value, unsigned long durationMillis) { sickness = value; if (value != Sickness::NONE && durationMillis > 0) { sicknessEndTime = millis() + durationMillis; } else { sicknessEndTime = 0; } }
-void GameStats::setIsSleeping(bool value) { isSleeping = value; if (isSleeping) { sleepStartTime = millis(); } else { sleepStartTime = 0; } }
-void GameStats::setPoopCount(uint8_t value) { poopCount = std::min((uint8_t)3, std::max((uint8_t)0, value)); }
-void GameStats::setLanguage(Language value) { if (selectedLanguage != value) { selectedLanguage = value; updateGlobalLanguage(); } }
-void GameStats::setWeather(WeatherType type, unsigned long nextChange) { currentWeather = type; nextWeatherChangeTime = nextChange; }
-void GameStats::setCompletedPrequelStage(PrequelStage stage) { completedPrequelStage = stage; }
+void GameStats::setHealth(uint8_t value) { health = std::min((uint8_t)100, std::max((uint8_t)0, value)); checkAndApplyConsequences(); }
+void GameStats::setHappiness(uint8_t value) { happiness = std::min((uint8_t)100, std::max((uint8_t)0, value)); checkAndApplyConsequences(); }
+void GameStats::setDirty(uint8_t value) { dirty = std::min((uint8_t)100, std::max((uint8_t)0, value)); checkAndApplyConsequences(); }
+void GameStats::setFatigue(uint8_t value) { fatigue = std::min((uint8_t)100, std::max((uint8_t)0, value)); checkAndApplyConsequences(); }
+void GameStats::setHunger(uint8_t value) { hunger = std::min((uint8_t)100, std::max((uint8_t)0, value)); checkAndApplyConsequences(); }
+void GameStats::setSickness(Sickness value, unsigned long durationMillis) { 
+    if (sickness == value) return;
+    sickness = value; 
+    if (value != Sickness::NONE && durationMillis > 0) { 
+        sicknessEndTime = millis() + durationMillis; 
+    } else { 
+        sicknessEndTime = 0; 
+    } 
+    checkAndApplyConsequences(); 
+    save();
+}
+void GameStats::setIsSleeping(bool value) { 
+    if (isSleeping == value) return;
+    isSleeping = value; 
+    if (isSleeping) { 
+        sleepStartTime = millis(); 
+    } else { 
+        sleepStartTime = 0; 
+    } 
+    // This function is only called from checkAndApplyConsequences, so no need to call it back.
+    save();
+}
+void GameStats::setPoopCount(uint8_t value) { 
+    uint8_t newVal = std::min((uint8_t)3, std::max((uint8_t)0, value));
+    if (poopCount == newVal) return;
+    poopCount = newVal;
+    checkAndApplyConsequences(); 
+    save();
+}
+void GameStats::setLanguage(Language value) { 
+    if (selectedLanguage == value) return;
+    selectedLanguage = value; 
+    updateGlobalLanguage(); 
+    save();
+}
+void GameStats::setWeather(WeatherType type, unsigned long nextChange) { 
+    if (currentWeather == type && nextWeatherChangeTime == nextChange) return;
+    currentWeather = type; 
+    nextWeatherChangeTime = nextChange; 
+    save();
+}
+void GameStats::setCompletedPrequelStage(PrequelStage stage) { 
+    if (completedPrequelStage == stage) return;
+    completedPrequelStage = stage; 
+    save();
+}
 
 uint8_t GameStats::getModifiedHappiness() const { 
     int modifiedHappy = happiness; 
@@ -275,18 +329,12 @@ bool GameStats::updateAccumulatedStats(unsigned long currentTime, unsigned long 
         // Minimal health/happiness regen while sleeping
         setHealth(std::min((uint8_t)100, (uint8_t)(health + (timeDeltaMinutes / 10)))); // 1 health every 10 min
         setHappiness(std::min((uint8_t)100, (uint8_t)(happiness + (timeDeltaMinutes / 15)))); // 1 happy every 15 min
-
-
-        if (fatigue == 0) {
-            setIsSleeping(false); 
-            debugPrint("GAME_STATS", "GameStats AccumStats: Fatigue reached 0, Auto-waking character!");
-        }
     } else { // --- Awake State Logic ---
         // Base fatigue increase
         int fatigueIncrease = timeDeltaMinutes * 1; // 1 fatigue per minute awake
         if (currentWeather == WeatherType::SUNNY || currentWeather == WeatherType::STORM) { fatigueIncrease += timeDeltaMinutes * 1; }
         setFatigue(std::min((uint8_t)100, (uint8_t)(fatigue + fatigueIncrease)));
-
+        
         // Base dirty increase
         int dirtyIncrease = 0;
         if (currentWeather == WeatherType::RAINY) dirtyIncrease += timeDeltaMinutes * 1;

@@ -12,15 +12,20 @@
 #include "../../System/GameContext.h" 
 
 SleepingScene::SleepingScene() :
+    _currentPhase(Phase::SLEEPING),
     _sleepIndicatorState(false),
     _lastSleepIndicatorToggleTime(0),
     _lastFlyingZSpawnTime(0),
     _currentFatigueBarDisplayValue(0.0f),
     _targetFatigueBarDisplayValue(0.0f),
+    _fatigueBarAnimStartValue(0.0f),
     _fatigueBarAnimStartTime(0),
     _isFatigueBarAnimating(false),
     _fatigueBarPatternOffset(0),
-    _lastFatigueBarPatternUpdateTime(0)
+    _lastFatigueBarPatternUpdateTime(0),
+    _wakeUpAnimationStartTime(0),
+    _fatigueBarY(0.0f),
+    _fatigueBarVY(0.0f)
 {
 }
 
@@ -66,16 +71,24 @@ void SleepingScene::onEnter() {
     _targetEggX = (renderer.getWidth() - charW) / 2;
     _targetEggY = (renderer.getHeight() - charH) / 2;
     
+    _currentPhase = Phase::SLEEPING;
     _lastSleepIndicatorToggleTime = millis();
     _lastFlyingZSpawnTime = millis();
     if (_particleSystem) _particleSystem->reset();
     if (_dialogBox) _dialogBox->close();
 
+    _currentFatigueBarDisplayValue = 0.0f;
+    _fatigueBarAnimStartValue = 0.0f;
     _targetFatigueBarDisplayValue = 100.0f - (float)_gameContext->gameStats->fatigue; 
     _fatigueBarAnimStartTime = millis();
     _isFatigueBarAnimating = true;
     _fatigueBarPatternOffset = 0; 
     _lastFatigueBarPatternUpdateTime = millis();
+
+    _fatigueBarY = renderer.getYOffset() + renderer.getHeight() - FATIGUE_BAR_HEIGHT - FATIGUE_BAR_Y_OFFSET;
+    _fatigueBarVY = 0.0f;
+    _wakeUpAnimationStartTime = 0;
+
     debugPrintf("SCENES", "SleepingScene: Fatigue bar animation target: %.1f", _targetFatigueBarDisplayValue);
 }
 
@@ -92,15 +105,37 @@ void SleepingScene::onExit() {
 void SleepingScene::update(unsigned long deltaTime) {
     unsigned long currentTime = millis();
 
-    if (!_gameContext || !_gameContext->gameStats) return; // Guard
-    GameStats* gameStats = _gameContext->gameStats; // Convenience
+    if (!_gameContext || !_gameContext->gameStats) return;
+    GameStats* gameStats = _gameContext->gameStats;
 
+    if (_currentPhase == Phase::WAKING_UP) {
+        _fatigueBarVY += BAR_GRAVITY;
+        _fatigueBarY += _fatigueBarVY;
+        if (_particleSystem) _particleSystem->update(currentTime, deltaTime);
+
+        if (currentTime >= _wakeUpAnimationStartTime + WAKE_UP_ANIMATION_DURATION_MS) {
+            _gameContext->sceneManager->requestSetCurrentScene("MAIN");
+        }
+        return;
+    }
+
+    // --- SLEEPING Phase Logic ---
     updateSleepState(currentTime, deltaTime);
+    
+    float currentRestPercentage = 100.0f - (float)gameStats->fatigue;
+    if (!_isFatigueBarAnimating && std::abs(currentRestPercentage - _targetFatigueBarDisplayValue) > 0.5f) {
+        debugPrintf("SCENES", "SleepingScene: Fatigue changed. Animating bar from %.1f to %.1f.", _currentFatigueBarDisplayValue, currentRestPercentage);
+        _fatigueBarAnimStartValue = _currentFatigueBarDisplayValue;
+        _targetFatigueBarDisplayValue = currentRestPercentage;
+        _fatigueBarAnimStartTime = currentTime;
+        _isFatigueBarAnimating = true;
+    }
+    
     updateFatigueBarAnimation(currentTime);
 
     if (currentTime - _lastFatigueBarPatternUpdateTime >= FATIGUE_BAR_PATTERN_UPDATE_MS) {
         _lastFatigueBarPatternUpdateTime = currentTime;
-        _fatigueBarPatternOffset = (_fatigueBarPatternOffset + 1) % (FATIGUE_BAR_PATTERN_WIDTH + FATIGUE_BAR_PATTERN_SPACING);
+        _fatigueBarPatternOffset = (_fatigueBarPatternOffset + 1) % (FATIGUE_BAR_PATTERN_STRIPE_WIDTH + FATIGUE_BAR_PATTERN_SPACING);
     }
 
     if (_dialogBox && _dialogBox->isActive()) {
@@ -110,9 +145,15 @@ void SleepingScene::update(unsigned long deltaTime) {
     }
 
     if (!gameStats->isSleeping) {
-        debugPrint("SCENES", "SleepingScene: Detected character is no longer sleeping (auto-wake). Switching to MainScene.");
-        if (_gameContext->sceneManager) { // Use context
-            _gameContext->sceneManager->requestSetCurrentScene("MAIN");
+        debugPrint("SCENES", "SleepingScene: Detected wake up. Starting wake-up animation.");
+        _currentPhase = Phase::WAKING_UP;
+        _wakeUpAnimationStartTime = currentTime;
+        _fatigueBarVY = -1.5f; // Initial upward pop before falling
+        if (_particleSystem) {
+             _particleSystem->spawnParticle(
+                _targetEggX, _targetEggY, 0, -0.5f,
+                WAKE_UP_ANIMATION_DURATION_MS - 500, 'Z', u8g2_font_9x15_tf, 1
+            );
         }
     }
 }
@@ -124,7 +165,8 @@ void SleepingScene::updateFatigueBarAnimation(unsigned long currentTime) {
     if (FATIGUE_BAR_ANIM_DURATION_MS > 0 && elapsedTime < FATIGUE_BAR_ANIM_DURATION_MS) {
         progress = (float)elapsedTime / (float)FATIGUE_BAR_ANIM_DURATION_MS;
     }
-    _currentFatigueBarDisplayValue = 0.0f + (_targetFatigueBarDisplayValue - 0.0f) * progress;
+    _currentFatigueBarDisplayValue = _fatigueBarAnimStartValue + (_targetFatigueBarDisplayValue - _fatigueBarAnimStartValue) * progress;
+    
     if (progress >= 1.0f) {
         _currentFatigueBarDisplayValue = _targetFatigueBarDisplayValue; 
         _isFatigueBarAnimating = false;
@@ -138,9 +180,9 @@ void SleepingScene::updateSleepState(unsigned long currentTime, unsigned long de
     }
 
     if (_particleSystem) {
-        if (currentTime - _lastFlyingZSpawnTime >= FLYING_Z_SPAWN_INTERVAL_MS) {
+        if (_currentPhase == Phase::SLEEPING && currentTime - _lastFlyingZSpawnTime >= FLYING_Z_SPAWN_INTERVAL_MS) {
             _lastFlyingZSpawnTime = currentTime;
-            if (!_gameContext || !_gameContext->characterManager) return; // Guard
+            if (!_gameContext || !_gameContext->characterManager) return;
 
             GraphicAssetData baseAsset;
             int charW = 32;
@@ -166,7 +208,11 @@ void SleepingScene::draw(Renderer& renderer) {
 
     u8g2->setDrawColor(1); 
     drawCharacter(renderer);
-    drawSleepIndicator(renderer); 
+    if (_currentPhase == Phase::SLEEPING) {
+        drawSleepIndicator(renderer); 
+    } else if (_currentPhase == Phase::WAKING_UP) {
+        if (_particleSystem) _particleSystem->draw();
+    }
     drawFatigueBar(renderer);
     if (_dialogBox && _dialogBox->isActive()) { _dialogBox->draw(); }
 }
@@ -215,31 +261,52 @@ void SleepingScene::drawFatigueBar(Renderer& renderer) {
     U8G2* u8g2 = _gameContext->display;
     
     int barX = renderer.getXOffset() + (renderer.getWidth() - FATIGUE_BAR_WIDTH) / 2;
-    int barY = renderer.getYOffset() + renderer.getHeight() - FATIGUE_BAR_HEIGHT - FATIGUE_BAR_Y_OFFSET;
-    int fillW = map(static_cast<long>(_currentFatigueBarDisplayValue), 0, 100, 0, FATIGUE_BAR_WIDTH - (2 * FATIGUE_BAR_CORNER_RADIUS));
-    fillW = std::max(0, std::min(FATIGUE_BAR_WIDTH - (2 * FATIGUE_BAR_CORNER_RADIUS), fillW));
+    int barY = static_cast<int>(round(_fatigueBarY)); 
+    
+    if (barY > renderer.getYOffset() + renderer.getHeight() || barY + FATIGUE_BAR_HEIGHT < renderer.getYOffset()) {
+        return;
+    }
+
+    int fillW = map(static_cast<long>(_currentFatigueBarDisplayValue), 0, 100, 0, FATIGUE_BAR_WIDTH - 2);
+    fillW = std::max(0, std::min(FATIGUE_BAR_WIDTH - 2, fillW));
     uint8_t originalDrawColor = u8g2->getDrawColor();
+    
     u8g2->setDrawColor(1); 
     u8g2->drawRFrame(barX, barY, FATIGUE_BAR_WIDTH, FATIGUE_BAR_HEIGHT, FATIGUE_BAR_CORNER_RADIUS);
+    
     if (fillW > 0) {
-        u8g2->setDrawColor(1);
         u8g2->drawRBox(barX + 1, barY + 1, fillW, FATIGUE_BAR_HEIGHT - 2, FATIGUE_BAR_CORNER_RADIUS > 0 ? FATIGUE_BAR_CORNER_RADIUS -1 : 0);
     }
+    
     if (fillW > 0) {
         u8g2->setClipWindow(barX + 1, barY + 1, barX + 1 + fillW, barY + 1 + FATIGUE_BAR_HEIGHT - 2);
         u8g2->setDrawColor(0); 
-        for (int x_offset = -FATIGUE_BAR_PATTERN_WIDTH - FATIGUE_BAR_PATTERN_SPACING + _fatigueBarPatternOffset; x_offset < fillW; x_offset += (FATIGUE_BAR_PATTERN_WIDTH + FATIGUE_BAR_PATTERN_SPACING)) {
-            for (int i = 0; i < FATIGUE_BAR_PATTERN_WIDTH; ++i) {
-                int lineX = barX + 1 + x_offset + i; 
-                u8g2->drawVLine(lineX, barY + 1, FATIGUE_BAR_HEIGHT - 2);
+        
+        const int barInnerH = FATIGUE_BAR_HEIGHT - 2;
+        const int patternCycle = FATIGUE_BAR_PATTERN_STRIPE_WIDTH + FATIGUE_BAR_PATTERN_SPACING;
+        
+        for (int x_base = -barInnerH - patternCycle; x_base < fillW; x_base += patternCycle) {
+            for (int i = 0; i < FATIGUE_BAR_PATTERN_STRIPE_WIDTH; ++i) {
+                int line_x_start = x_base + _fatigueBarPatternOffset + i;
+                int line_x1 = barX + 1 + line_x_start;
+                int line_y1 = barY + 1;
+                int line_x2 = line_x1 - barInnerH;
+                int line_y2 = line_y1 + barInnerH;
+                u8g2->drawLine(line_x1, line_y1, line_x2, line_y2);
             }
         }
+        
         u8g2->setMaxClipWindow(); 
     }
+    
     u8g2->setDrawColor(originalDrawColor); 
 }
 
 void SleepingScene::onWakeUpAttemptPress() {
+    if (_currentPhase != Phase::SLEEPING) {
+        debugPrintf("SCENES", "Ignoring wake up attempt, current phase is %d", (int)_currentPhase);
+        return;
+    }
     attemptToWakeUp();
 }
 
@@ -257,10 +324,8 @@ void SleepingScene::attemptToWakeUp() {
                    gameStats->fatigue, WAKE_FATIGUE_THRESHOLD);
         _dialogBox->showTemporary(loc(StringKey::DIALOG_STILL_TOO_TIRED));
     } else {
-        debugPrint("SCENES", "SleepingScene: Attempt wake OK. Switching to MainScene.");
+        debugPrint("SCENES", "SleepingScene: Attempt wake OK. Setting isSleeping to false.");
         gameStats->setIsSleeping(false);
-        gameStats->save();
-        _gameContext->sceneManager->requestSetCurrentScene("MAIN");
     }
 }
 

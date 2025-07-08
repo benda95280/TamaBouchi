@@ -98,8 +98,6 @@ public:
     _2CellularConglomerationScene();
     ~_2CellularConglomerationScene() override;
 
-    SceneType getSceneType() const override { return SceneType::PREQUEL_STAGE_2; }
-
     // This is a scene-specific init, not an override
     void init(GameContext& context); 
     void onEnter() override;

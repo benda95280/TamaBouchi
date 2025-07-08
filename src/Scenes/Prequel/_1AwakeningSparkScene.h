@@ -18,8 +18,6 @@ public:
     _1AwakeningSparkScene();
     ~_1AwakeningSparkScene() override;
 
-    SceneType getSceneType() const override { return SceneType::PREQUEL_STAGE_1; }
-
     // This is a scene-specific init method, not an override of the base class.
     void init(GameContext& context); 
     void onEnter() override;

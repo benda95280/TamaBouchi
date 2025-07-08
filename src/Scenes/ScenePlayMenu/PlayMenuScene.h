@@ -15,8 +15,6 @@ public:
     PlayMenuScene();
     ~PlayMenuScene() override;
 
-    SceneType getSceneType() const override { return SceneType::PLAY_MENU; }
-
     // This is a scene-specific init method, not an override of the base class.
     void init(GameContext& context); 
     void onEnter() override;

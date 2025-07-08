@@ -1,4 +1,3 @@
-// --- START OF FILE src/GameStats.h ---
 #ifndef GAMESTATS_H
 #define GAMESTATS_H
 
@@ -89,6 +88,7 @@ private:
     // --- Private Helpers ---
     void updateAgeBasedOnPoints();
     void updateGlobalLanguage();
+    void checkAndApplyConsequences(); // <<< NEW
     // --- End Private Helpers ---
 
 public:
@@ -134,4 +134,3 @@ public:
 };
 
 #endif // GAMESTATS_H
-// --- END OF FILE src/GameStats.h ---

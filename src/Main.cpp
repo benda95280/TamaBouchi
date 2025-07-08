@@ -236,7 +236,7 @@ void setup()
 
 
     Serial.begin(115200UL, 134217756U, 3, 1);
-    delay(100);
+    //delay(100);
     Serial.println("\nStarting TamaBouchi! (HW Serial)");
     Serial.println("\nFree heap : " + String(ESP.getFreeHeap()));
     Serial.println("Free min heap : " + String(ESP.getMinFreeHeap()));
@@ -262,7 +262,7 @@ void setup()
     gameContext.serialForwarder = forwardedSerial_ptr;
 
     Serial.flush();
-    delay(100);
+    //delay(100);
 
     if (forwardedSerial_ptr)
     {
@@ -443,9 +443,9 @@ void setup()
     webSerial_ptr->setBuffer(0);
 
     Serial.flush();
-    delay(100);
+    //delay(100);
     webSerial_ptr->begin(server_ptr);
-    delay(100);
+    //delay(100);
     debugPrint("SYSTEM", "WebSerial initialized.");
     debugPrint("SYSTEM", "Initializing setKeyQueue...");
     if (gameContext.inputManager)

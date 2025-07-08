@@ -68,7 +68,6 @@ public:
     void update(unsigned long deltaTime) override;
     void draw(Renderer& renderer) override; 
 
-    SceneType getSceneType() const override { return SceneType::ACTION; } 
     DialogBox* getDialogBox() override { return _dialogBox.get(); } 
 
 

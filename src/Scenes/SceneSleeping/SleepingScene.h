@@ -17,10 +17,8 @@ public:
     SleepingScene();
     ~SleepingScene() override;
 
-    SceneType getSceneType() const override { return SceneType::SLEEPING; }
     DialogBox* getDialogBox() override { return _dialogBox.get(); } 
 
-    // This is a scene-specific init, not an override of the base class.
     void init(GameContext& context); 
     void onEnter() override;
     void onExit() override;
@@ -28,6 +26,9 @@ public:
     void draw(Renderer& renderer) override; 
 
 private:
+    enum class Phase { SLEEPING, WAKING_UP };
+    Phase _currentPhase = Phase::SLEEPING;
+
     static const uint8_t WAKE_FATIGUE_THRESHOLD = 50;
     static const int FATIGUE_BAR_WIDTH = 80;
     static const int FATIGUE_BAR_HEIGHT = 5;
@@ -39,11 +40,13 @@ private:
     static constexpr float FLYING_Z_SPEED_Y = -0.4f;
     static constexpr float FLYING_Z_SPEED_X_VAR = 0.1f;
     static const unsigned long FATIGUE_BAR_ANIM_DURATION_MS = 750; 
-    static const unsigned long FATIGUE_BAR_PATTERN_UPDATE_MS = 150; 
-    static const int FATIGUE_BAR_PATTERN_WIDTH = 4; 
-    static const int FATIGUE_BAR_PATTERN_SPACING = 2; 
+    static const unsigned long FATIGUE_BAR_PATTERN_UPDATE_MS = 100; 
+    static const int FATIGUE_BAR_PATTERN_STRIPE_WIDTH = 4; 
+    static const int FATIGUE_BAR_PATTERN_SPACING = 4; 
+    static const unsigned long WAKE_UP_ANIMATION_DURATION_MS = 1500;
+    static constexpr float BAR_GRAVITY = 0.15f;
 
-    // Scene-specific context pointer
+
     GameContext* _gameContext = nullptr;
 
     std::unique_ptr<ParticleSystem> _particleSystem;
@@ -58,10 +61,15 @@ private:
 
     float _currentFatigueBarDisplayValue = 0.0f; 
     float _targetFatigueBarDisplayValue = 0.0f;
+    float _fatigueBarAnimStartValue = 0.0f; 
     unsigned long _fatigueBarAnimStartTime = 0;
     bool _isFatigueBarAnimating = false;
     int _fatigueBarPatternOffset = 0; 
     unsigned long _lastFatigueBarPatternUpdateTime = 0;
+
+    unsigned long _wakeUpAnimationStartTime = 0;
+    float _fatigueBarY = 0.0f;
+    float _fatigueBarVY = 0.0f;
 
     void updateSleepState(unsigned long currentTime, unsigned long deltaTime);
     void drawCharacter(Renderer& renderer);

@@ -18,8 +18,6 @@ public:
     StatsScene();
     ~StatsScene() override;
 
-    SceneType getSceneType() const override { return SceneType::STATS; } 
-
     // This is a scene-specific init, not an override of the base class.
     void init(GameContext& context); 
     void onEnter() override;

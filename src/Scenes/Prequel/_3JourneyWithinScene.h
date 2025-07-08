@@ -36,8 +36,6 @@ public:
     _3JourneyWithinScene();
     ~_3JourneyWithinScene() override;
 
-    SceneType getSceneType() const override { return SceneType::PREQUEL_STAGE_3; }
-
     // This is a scene-specific init, not an override of the base class.
     void init(GameContext &context);
     void onEnter() override;

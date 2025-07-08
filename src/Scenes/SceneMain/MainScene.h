@@ -33,7 +33,6 @@ public:
     void draw(Renderer& renderer) override;
     void onEnter() override;
     void onExit() override;
-    SceneType getSceneType() const override { return SceneType::MAIN; }
 
     bool triggerSnoozeAnimation();
     bool triggerLeanAnimation();
